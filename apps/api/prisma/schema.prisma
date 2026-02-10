@@ -1,0 +1,324 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum TicketType {
+  SOFTWARE
+  HARDWARE
+  ACCESS
+  ONBOARDING
+  OFFBOARDING
+  OTHER
+}
+
+enum TicketStatus {
+  NEW
+  IN_PROGRESS
+  ON_HOLD
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AssetType {
+  COMPUTER
+  PHONE
+  PRINTER
+  NETWORK
+  OTHER
+}
+
+enum AssetStatus {
+  ACTIVE
+  MAINTENANCE
+  RETIRED
+}
+
+enum NotificationType {
+  TICKET_CREATED
+  TICKET_ASSIGNED
+  TICKET_UPDATED
+  TICKET_MESSAGE
+  TICKET_SLA_BREACH
+  USER_APPROVED
+}
+
+// ============================================================================
+// SUPER ADMIN (hors tenant - plateforme)
+// ============================================================================
+
+model SuperAdmin {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("super_admins")
+}
+
+// ============================================================================
+// ORGANIZATION (tenant)
+// ============================================================================
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  users         User[]
+  tickets       Ticket[]
+  slaPolicies   SlaPolicy[]
+  assets        Asset[]
+  notifications Notification[]
+
+  @@map("organizations")
+}
+
+// ============================================================================
+// USER
+// ============================================================================
+
+model User {
+  id             String     @id @default(uuid())
+  email          String
+  passwordHash   String
+  firstName      String
+  lastName       String
+  role           UserRole   @default(USER)
+  status         UserStatus @default(PENDING)
+  organizationId String
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  // Relations
+  organization    Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdTickets  Ticket[]       @relation("TicketCreatedBy")
+  assignedTickets Ticket[]       @relation("TicketAssignedAdmin")
+  messages        Message[]
+  notifications   Notification[]
+  refreshTokens   RefreshToken[]
+
+  // Unique email per organization
+  @@unique([email, organizationId])
+  @@index([organizationId])
+  @@index([status])
+  @@map("users")
+}
+
+// ============================================================================
+// REFRESH TOKEN
+// ============================================================================
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+// ============================================================================
+// TICKET
+// ============================================================================
+
+model Ticket {
+  id                 String         @id @default(uuid())
+  number             Int            // Auto-incremented counter per org
+  key                String         // Readable format: TCK-0001
+  title              String
+  description        String
+  type               TicketType     @default(OTHER)
+  status             TicketStatus   @default(NEW)
+  priority           TicketPriority @default(MEDIUM)
+  requesterFirstName String
+  requesterLastName  String
+  requesterEmail     String
+  organizationId     String
+  createdByUserId    String?
+  assignedAdminId    String?
+  slaBreachedAt      DateTime?
+  resolvedAt         DateTime?
+  closedAt           DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  // Relations
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy     User?          @relation("TicketCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  assignedAdmin User?          @relation("TicketAssignedAdmin", fields: [assignedAdminId], references: [id], onDelete: SetNull)
+  messages      Message[]
+  attachments   Attachment[]
+  notifications Notification[]
+
+  // Unique constraints per organization
+  @@unique([organizationId, number])
+  @@unique([organizationId, key])
+  @@index([organizationId])
+  @@index([status])
+  @@index([priority])
+  @@index([type])
+  @@index([createdByUserId])
+  @@index([assignedAdminId])
+  @@index([requesterEmail])
+  @@map("tickets")
+}
+
+// ============================================================================
+// MESSAGE
+// ============================================================================
+
+model Message {
+  id           String   @id @default(uuid())
+  content      String
+  ticketId     String
+  authorUserId String?
+  authorName   String?  // Fallback if user is deleted or anonymous
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User?  @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
+  @@index([authorUserId])
+  @@map("messages")
+}
+
+// ============================================================================
+// ATTACHMENT
+// ============================================================================
+
+model Attachment {
+  id        String   @id @default(uuid())
+  filename  String
+  mimeType  String
+  size      Int      // in bytes
+  url       String   // storage path or URL
+  ticketId  String
+  createdAt DateTime @default(now())
+
+  // Relations
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("attachments")
+}
+
+// ============================================================================
+// SLA POLICY
+// ============================================================================
+
+model SlaPolicy {
+  id             String         @id @default(uuid())
+  priority       TicketPriority
+  responseTime   Int            // in minutes
+  resolutionTime Int            // in minutes
+  organizationId String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // One SLA policy per priority per organization
+  @@unique([priority, organizationId])
+  @@index([organizationId])
+  @@map("sla_policies")
+}
+
+// ============================================================================
+// NOTIFICATION
+// ============================================================================
+
+model Notification {
+  id             String           @id @default(uuid())
+  type           NotificationType
+  title          String
+  content        String
+  read           Boolean          @default(false)
+  userId         String
+  organizationId String
+  ticketId       String?
+  createdAt      DateTime         @default(now())
+
+  // Relations
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  ticket       Ticket?      @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([read])
+  @@index([ticketId])
+  @@map("notifications")
+}
+
+// ============================================================================
+// ASSET (parc informatique)
+// ============================================================================
+
+model Asset {
+  id              String      @id @default(uuid())
+  name            String
+  type            AssetType
+  status          AssetStatus @default(ACTIVE)
+  serialNumber    String?
+  brand           String?
+  model           String?
+  purchaseDate    DateTime?
+  notes           String?
+  assignedToEmail String?     // simple string, no FK
+  organizationId  String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([type])
+  @@index([status])
+  @@index([assignedToEmail])
+  @@map("assets")
+}

@@ -1,0 +1,243 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Recharts: remove ALL focus outlines and stroke on chart elements */
+.recharts-sector,
+.recharts-sector:focus,
+.recharts-sector:active,
+.recharts-sector:hover,
+.recharts-bar-rectangle,
+.recharts-bar-rectangle:focus,
+.recharts-bar-rectangle:active,
+.recharts-bar-rectangle:hover,
+.recharts-surface,
+.recharts-surface:focus,
+.recharts-surface:active,
+.recharts-no-outline,
+.recharts-no-outline *,
+.recharts-wrapper path:focus,
+.recharts-wrapper rect:focus {
+  outline: none !important;
+  stroke-dasharray: none;
+}
+.recharts-sector[stroke="#fff"],
+.recharts-sector[stroke="white"] {
+  stroke: var(--surface) !important;
+}
+
+/* ============================================================================
+   LIGHT THEME (default)
+   ============================================================================ */
+:root {
+  /* Surfaces */
+  --surface: #ffffff;
+  --surface-secondary: #fafafa;
+  --surface-tertiary: #f4f4f5;
+  --surface-hover: #f0f0f2;
+  --surface-inset: #e8e8eb;
+
+  /* Borders */
+  --border: #e4e4e7;
+  --border-secondary: #d4d4d8;
+
+  /* Text */
+  --foreground: #18181b;
+  --foreground-secondary: #52525b;
+  --foreground-muted: #a1a1aa;
+  --foreground-inverse: #fafafa;
+
+  /* Accent (indigo) */
+  --accent: #6366f1;
+  --accent-hover: #4f46e5;
+  --accent-muted: #e0e7ff;
+  --accent-foreground: #ffffff;
+
+  /* Sidebar (always dark) */
+  --sidebar-bg: #0c0c0f;
+  --sidebar-border: #1e1e23;
+  --sidebar-text: #8b8b96;
+  --sidebar-text-active: #f4f4f5;
+  --sidebar-hover: #16161b;
+  --sidebar-active: #6366f1;
+
+  /* Status colors */
+  --status-new: #6366f1;
+  --status-new-bg: #eef2ff;
+  --status-progress: #f59e0b;
+  --status-progress-bg: #fffbeb;
+  --status-hold: #8b8b96;
+  --status-hold-bg: #f4f4f5;
+  --status-resolved: #22c55e;
+  --status-resolved-bg: #f0fdf4;
+  --status-closed: #71717a;
+  --status-closed-bg: #f4f4f5;
+
+  /* Priority colors */
+  --priority-low: #a1a1aa;
+  --priority-medium: #6366f1;
+  --priority-high: #f59e0b;
+  --priority-critical: #ef4444;
+
+  /* Misc */
+  --shadow-color: 0 0% 0%;
+  --loading-shimmer: linear-gradient(90deg, var(--surface-tertiary) 0%, var(--surface) 50%, var(--surface-tertiary) 100%);
+}
+
+/* ============================================================================
+   DARK THEME
+   ============================================================================ */
+.dark {
+  /* Surfaces */
+  --surface: #111113;
+  --surface-secondary: #09090b;
+  --surface-tertiary: #18181b;
+  --surface-hover: #1f1f23;
+  --surface-inset: #0c0c0e;
+
+  /* Borders */
+  --border: #27272a;
+  --border-secondary: #3f3f46;
+
+  /* Text */
+  --foreground: #fafafa;
+  --foreground-secondary: #a1a1aa;
+  --foreground-muted: #52525b;
+  --foreground-inverse: #09090b;
+
+  /* Accent (lighter indigo for dark bg) */
+  --accent: #818cf8;
+  --accent-hover: #6366f1;
+  --accent-muted: #1e1b4b;
+  --accent-foreground: #ffffff;
+
+  /* Sidebar */
+  --sidebar-bg: #09090b;
+  --sidebar-border: #18181b;
+  --sidebar-text: #71717a;
+  --sidebar-text-active: #f4f4f5;
+  --sidebar-hover: #141416;
+  --sidebar-active: #818cf8;
+
+  /* Status colors (dark) */
+  --status-new: #818cf8;
+  --status-new-bg: #1e1b4b;
+  --status-progress: #fbbf24;
+  --status-progress-bg: #451a03;
+  --status-hold: #71717a;
+  --status-hold-bg: #27272a;
+  --status-resolved: #4ade80;
+  --status-resolved-bg: #052e16;
+  --status-closed: #52525b;
+  --status-closed-bg: #18181b;
+
+  /* Priority colors (dark) */
+  --priority-low: #71717a;
+  --priority-medium: #818cf8;
+  --priority-high: #fbbf24;
+  --priority-critical: #f87171;
+
+  /* Misc */
+  --shadow-color: 0 0% 0%;
+  --loading-shimmer: linear-gradient(90deg, var(--surface-tertiary) 0%, var(--surface-hover) 50%, var(--surface-tertiary) 100%);
+}
+
+/* ============================================================================
+   BASE STYLES
+   ============================================================================ */
+body {
+  color: var(--foreground);
+  background: var(--surface-secondary);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.dark body {
+  background: radial-gradient(ellipse 80% 60% at 50% -10%, #1a1a2e 0%, var(--surface-secondary) 70%);
+}
+
+/* Selection */
+::selection {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+/* ============================================================================
+   SCROLLBAR
+   ============================================================================ */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-secondary);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* ============================================================================
+   FOCUS
+   ============================================================================ */
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* ============================================================================
+   GLASS UTILITIES
+   ============================================================================ */
+.glass {
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-subtle {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+:root .glass {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+:root .glass-subtle {
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+/* ============================================================================
+   LOADING SKELETON
+   ============================================================================ */
+.skeleton {
+  background: var(--loading-shimmer);
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+  border-radius: 8px;
+}
+
+/* ============================================================================
+   TRANSITIONS
+   ============================================================================ */
+.page-transition {
+  animation: fadeIn 0.25s ease-out, slideUp 0.3s ease-out;
+}
