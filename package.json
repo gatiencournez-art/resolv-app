@@ -5,7 +5,7 @@
   "description": "Resolv - SaaS Ticketing IT Multi-Tenant",
   "scripts": {
     "dev": "turbo run dev",
-    "build": "npm run db:generate && turbo run build",
+    "build": "npm run db:generate --workspace=@resolv/api && turbo run build",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
