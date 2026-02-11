@@ -10,7 +10,6 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   AreaChart, Area,
-  Legend,
 } from 'recharts';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 
@@ -99,14 +98,6 @@ function daysBetween(from: Date, to: Date): number {
 // CHART COLORS & LABELS
 // ============================================================================
 
-const STATUS_COLORS: Record<TicketStatus, string> = {
-  NEW: '#818cf8',
-  IN_PROGRESS: '#fbbf24',
-  ON_HOLD: '#71717a',
-  RESOLVED: '#4ade80',
-  CLOSED: '#52525b',
-};
-
 const STATUS_LABELS: Record<TicketStatus, string> = {
   NEW: 'Nouveau',
   IN_PROGRESS: 'En cours',
@@ -119,11 +110,19 @@ const TYPE_LABELS: Record<TicketType, string> = {
   SOFTWARE: 'Logiciel',
   HARDWARE: 'Matériel',
   ACCESS: 'Accès',
-  ONBOARDING: 'Onboarding',
-  OFFBOARDING: 'Offboarding',
+  ONBOARDING: 'Intégration',
+  OFFBOARDING: 'Départ',
   OTHER: 'Autre',
 };
 
+const TYPE_COLORS_MAP: Record<TicketType, string> = {
+  SOFTWARE: '#818cf8',
+  HARDWARE: '#f472b6',
+  ACCESS: '#fbbf24',
+  ONBOARDING: '#4ade80',
+  OFFBOARDING: '#38bdf8',
+  OTHER: '#a78bfa',
+};
 
 const PRIORITY_LABELS: Record<TicketPriority, string> = {
   LOW: 'Basse',
@@ -137,6 +136,14 @@ const PRIORITY_COLORS: Record<TicketPriority, string> = {
   MEDIUM: 'var(--priority-medium)',
   HIGH: 'var(--priority-high)',
   CRITICAL: 'var(--priority-critical)',
+};
+
+const STATUS_DOT: Record<TicketStatus, string> = {
+  NEW: 'bg-[var(--status-new)]',
+  IN_PROGRESS: 'bg-[var(--status-progress)]',
+  ON_HOLD: 'bg-[var(--status-hold)]',
+  RESOLVED: 'bg-[var(--status-resolved)]',
+  CLOSED: 'bg-[var(--status-closed)]',
 };
 
 // ============================================================================
@@ -241,21 +248,20 @@ function PeriodSelector({
 }
 
 // ============================================================================
-// STAT CARD
+// STAT CARD (clickable, Shopeers style)
 // ============================================================================
 
 function StatCard({
   label,
   count,
   icon,
-  bgColor,
+  iconBg,
   href,
 }: {
   label: string;
   count: number;
   icon: React.ReactNode;
-  color: string;
-  bgColor: string;
+  iconBg: string;
   href: string;
 }) {
   const router = useRouter();
@@ -263,144 +269,53 @@ function StatCard({
   return (
     <button
       onClick={() => router.push(href)}
-      className="group relative flex flex-col gap-3 p-5 rounded-2xl bg-surface border border-th-border hover:border-th-border-secondary hover:-translate-y-[1px] hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-black/20 transition-all duration-150 text-left cursor-pointer overflow-hidden"
+      className="relative flex flex-col p-5 rounded-2xl bg-surface border border-th-border hover:border-th-border-secondary hover:-translate-y-[1px] hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-black/20 transition-all duration-150 text-left cursor-pointer overflow-hidden"
     >
-      <div className="flex items-center justify-between relative">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${bgColor}18` }}>
-          <span style={{ color: bgColor }}>{icon}</span>
+      {/* Subtle gradient overlay */}
+      <div
+        className="absolute inset-0 opacity-[0.04] pointer-events-none"
+        style={{ background: `linear-gradient(135deg, ${iconBg}, transparent)` }}
+      />
+      {/* Top row: label + icon */}
+      <div className="flex items-start justify-between mb-3">
+        <span className="text-[13px] text-foreground-secondary font-medium">{label}</span>
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: `${iconBg}15` }}
+        >
+          <span style={{ color: iconBg }}>{icon}</span>
         </div>
-        <span className="text-[28px] font-bold text-foreground tabular-nums leading-none">{count}</span>
       </div>
-      <span className="text-[13px] text-foreground-secondary font-medium group-hover:text-foreground transition-colors relative">
-        {label}
+
+      {/* Number */}
+      <span className="text-[28px] font-bold text-foreground tabular-nums leading-none">
+        {count.toLocaleString('fr-FR')}
       </span>
     </button>
   );
 }
 
 // ============================================================================
-// CHART CARD — no border, no grey hover
+// CHART CARD
 // ============================================================================
 
-function ChartCard({ title, children, className = '' }: { title: string; children: React.ReactNode; className?: string }) {
+function ChartCard({ title, subtitle, children, className = '', headerRight }: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  className?: string;
+  headerRight?: React.ReactNode;
+}) {
   return (
     <div className={`rounded-2xl bg-surface border border-th-border p-5 ${className}`}>
-      <h3 className="text-sm font-semibold text-foreground mb-4">{title}</h3>
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          {subtitle && <p className="text-xs text-foreground-muted mt-0.5">{subtitle}</p>}
+        </div>
+        {headerRight}
+      </div>
       {children}
-    </div>
-  );
-}
-
-// ============================================================================
-// STATUS BAR CHART (was pie, now bar)
-// ============================================================================
-
-function StatusBarChart({ tickets }: { tickets: Ticket[] }) {
-  const router = useRouter();
-  const data = useMemo(() => {
-    const statuses: TicketStatus[] = ['NEW', 'IN_PROGRESS', 'ON_HOLD', 'RESOLVED', 'CLOSED'];
-    return statuses
-      .map((s) => ({
-        name: STATUS_LABELS[s],
-        value: tickets.filter((t) => t.status === s).length,
-        status: s,
-        fill: STATUS_COLORS[s],
-      }))
-      .filter((d) => d.value > 0);
-  }, [tickets]);
-
-  if (data.length === 0) return <EmptyChart />;
-
-  return (
-    <div className="flex items-center justify-center">
-      <ResponsiveContainer width="100%" height={260}>
-        <BarChart data={data} barCategoryGap="20%">
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.3} />
-          <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--foreground-muted)' }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fontSize: 11, fill: 'var(--foreground-muted)' }} axisLine={false} tickLine={false} allowDecimals={false} />
-          <Tooltip content={<ChartTooltip />} cursor={false} />
-          <Bar
-            dataKey="value"
-            name="Tickets"
-            radius={[6, 6, 0, 0]}
-            className="recharts-no-outline"
-            onClick={(_entry, index) => {
-              const d = data[index];
-              if (d?.status) router.push(`/tickets?status=${d.status}`);
-            }}
-          >
-            {data.map((entry, i) => (
-              <Cell key={i} fill={entry.fill} className="recharts-no-outline" />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-// ============================================================================
-// TYPE PIE CHART (was bar, now pie — full circle)
-// ============================================================================
-
-const TYPE_COLORS_MAP: Record<TicketType, string> = {
-  SOFTWARE: '#818cf8',
-  HARDWARE: '#f472b6',
-  ACCESS: '#fbbf24',
-  ONBOARDING: '#4ade80',
-  OFFBOARDING: '#38bdf8',
-  OTHER: '#a78bfa',
-};
-
-function TypePieChart({ tickets }: { tickets: Ticket[] }) {
-  const router = useRouter();
-  const data = useMemo(() => {
-    const types: TicketType[] = ['SOFTWARE', 'HARDWARE', 'ACCESS', 'ONBOARDING', 'OFFBOARDING', 'OTHER'];
-    return types
-      .map((t) => ({
-        name: TYPE_LABELS[t],
-        value: tickets.filter((tk) => tk.type === t).length,
-        type: t,
-        fill: TYPE_COLORS_MAP[t],
-      }))
-      .filter((d) => d.value > 0);
-  }, [tickets]);
-
-  if (data.length === 0) return <EmptyChart />;
-
-  return (
-    <div className="flex items-center justify-center">
-      <ResponsiveContainer width="100%" height={260}>
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="45%"
-            innerRadius={0}
-            outerRadius={90}
-            paddingAngle={0}
-            dataKey="value"
-            stroke="var(--surface)"
-            strokeWidth={2}
-            className="recharts-no-outline"
-            onClick={(entry) => {
-              if (entry?.type) router.push(`/tickets?type=${entry.type}`);
-            }}
-          >
-            {data.map((entry, i) => (
-              <Cell key={i} fill={entry.fill} className="recharts-no-outline" />
-            ))}
-          </Pie>
-          <Tooltip content={<ChartTooltip />} cursor={false} />
-          <Legend
-            verticalAlign="bottom"
-            height={36}
-            iconType="circle"
-            iconSize={8}
-            formatter={(value: string) => <span className="text-xs text-foreground-secondary">{value}</span>}
-          />
-        </PieChart>
-      </ResponsiveContainer>
     </div>
   );
 }
@@ -448,21 +363,125 @@ function CreatedOverTimeChart({ tickets, dateRange }: { tickets: Ticket[]; dateR
   if (data.length === 0) return <EmptyChart />;
 
   return (
-    <ResponsiveContainer width="100%" height={260}>
+    <ResponsiveContainer width="100%" height={240}>
       <AreaChart data={data}>
         <defs>
           <linearGradient id="gradientCreated" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#818cf8" stopOpacity={0.25} />
-            <stop offset="100%" stopColor="#818cf8" stopOpacity={0} />
+            <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.25} />
+            <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.4} />
         <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--foreground-muted)' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
         <YAxis tick={{ fontSize: 11, fill: 'var(--foreground-muted)' }} axisLine={false} tickLine={false} allowDecimals={false} />
         <Tooltip content={<ChartTooltip />} cursor={false} />
-        <Area type="monotone" dataKey="count" name="Créés" stroke="#818cf8" fill="url(#gradientCreated)" strokeWidth={2} />
+        <Area type="monotone" dataKey="count" name="Créés" stroke="var(--accent)" fill="url(#gradientCreated)" strokeWidth={2} />
       </AreaChart>
     </ResponsiveContainer>
+  );
+}
+
+
+// ============================================================================
+// TYPE HORIZONTAL BARS
+// ============================================================================
+
+function TypeBarsChart({ tickets }: { tickets: Ticket[] }) {
+  const data = useMemo(() => {
+    const types: TicketType[] = ['SOFTWARE', 'HARDWARE', 'ACCESS', 'ONBOARDING', 'OFFBOARDING', 'OTHER'];
+    return types
+      .map((t) => ({
+        type: t,
+        label: TYPE_LABELS[t],
+        count: tickets.filter((tk) => tk.type === t).length,
+        color: TYPE_COLORS_MAP[t],
+      }))
+      .filter((d) => d.count > 0)
+      .sort((a, b) => b.count - a.count);
+  }, [tickets]);
+
+  if (data.length === 0) return <EmptyChart />;
+
+  const maxCount = Math.max(...data.map(d => d.count), 1);
+
+  return (
+    <div className="space-y-3">
+      {data.map((d) => (
+        <div key={d.type} className="flex items-center gap-3">
+          <div className="flex items-center gap-2 w-24 flex-shrink-0">
+            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
+            <span className="text-xs font-medium text-foreground-secondary truncate">{d.label}</span>
+          </div>
+          <div className="flex-1 h-7 bg-surface-tertiary rounded-lg overflow-hidden">
+            <div
+              className="h-full rounded-lg transition-all duration-500"
+              style={{
+                width: `${(d.count / maxCount) * 100}%`,
+                backgroundColor: d.color,
+                opacity: 0.7,
+              }}
+            />
+          </div>
+          <span className="text-sm font-bold text-foreground tabular-nums w-10 text-right">{d.count}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ============================================================================
+// RESOLUTION RATE DONUT
+// ============================================================================
+
+function ResolutionRateChart({ tickets }: { tickets: Ticket[] }) {
+  const { rate, resolved, total } = useMemo(() => {
+    const total = tickets.length;
+    const resolved = tickets.filter((t) => t.status === 'RESOLVED' || t.status === 'CLOSED').length;
+    return {
+      rate: total > 0 ? Math.round((resolved / total) * 100) : 0,
+      resolved,
+      total,
+    };
+  }, [tickets]);
+
+  const data = [
+    { name: 'Résolus', value: resolved, fill: '#4ade80' },
+    { name: 'En cours', value: Math.max(total - resolved, 0), fill: 'var(--border)' },
+  ];
+
+  if (total === 0) return <EmptyChart />;
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative">
+        <ResponsiveContainer width={200} height={200}>
+          <PieChart>
+            <Pie
+              data={data}
+              cx="50%"
+              cy="50%"
+              innerRadius={65}
+              outerRadius={90}
+              paddingAngle={2}
+              dataKey="value"
+              stroke="none"
+              className="recharts-no-outline"
+            >
+              {data.map((entry, i) => (
+                <Cell key={i} fill={entry.fill} className="recharts-no-outline" />
+              ))}
+            </Pie>
+            <Tooltip content={<ChartTooltip />} cursor={false} />
+          </PieChart>
+        </ResponsiveContainer>
+        {/* Center text */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-3xl font-bold text-foreground">{rate}%</span>
+        </div>
+      </div>
+      <p className="text-xs text-foreground-muted mt-2">des tickets résolus</p>
+      <p className="text-[11px] text-foreground-muted/60 mt-0.5">{resolved} sur {total} tickets</p>
+    </div>
   );
 }
 
@@ -472,7 +491,7 @@ function CreatedOverTimeChart({ tickets, dateRange }: { tickets: Ticket[]; dateR
 
 function EmptyChart() {
   return (
-    <div className="flex items-center justify-center h-[260px] text-foreground-muted text-sm">
+    <div className="flex items-center justify-center h-[200px] text-foreground-muted text-sm">
       Aucune donnée sur cette période
     </div>
   );
@@ -481,14 +500,6 @@ function EmptyChart() {
 // ============================================================================
 // RECENT TICKETS TABLE
 // ============================================================================
-
-const STATUS_DOT: Record<TicketStatus, string> = {
-  NEW: 'bg-[var(--status-new)]',
-  IN_PROGRESS: 'bg-[var(--status-progress)]',
-  ON_HOLD: 'bg-[var(--status-hold)]',
-  RESOLVED: 'bg-[var(--status-resolved)]',
-  CLOSED: 'bg-[var(--status-closed)]',
-};
 
 function RecentTicketsTable({ tickets }: { tickets: Ticket[] }) {
   const router = useRouter();
@@ -504,56 +515,96 @@ function RecentTicketsTable({ tickets }: { tickets: Ticket[] }) {
     );
   }
 
+  function getSlaLabel(ticket: Ticket) {
+    if (ticket.status === 'RESOLVED' || ticket.status === 'CLOSED') return null;
+    if (!ticket.slaBreachedAt) return null;
+    const breach = new Date(ticket.slaBreachedAt);
+    const now = new Date();
+    if (breach <= now) {
+      return { text: 'En retard', className: 'text-[var(--priority-critical)]' };
+    }
+    const hoursLeft = Math.round((breach.getTime() - now.getTime()) / 3600000);
+    if (hoursLeft <= 4) {
+      return { text: `${hoursLeft}h`, className: 'text-[var(--priority-high)]' };
+    }
+    return { text: `${hoursLeft}h`, className: 'text-foreground-muted' };
+  }
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
-          <tr>
-            <th className="text-left py-3 px-4 text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">Ticket</th>
-            <th className="text-left py-3 px-4 text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">Statut</th>
-            <th className="text-left py-3 px-4 text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">Priorité</th>
-            <th className="text-left py-3 px-4 text-[11px] font-semibold text-foreground-muted uppercase tracking-wider hidden md:table-cell">Demandeur</th>
-            <th className="text-right py-3 px-4 text-[11px] font-semibold text-foreground-muted uppercase tracking-wider hidden sm:table-cell">Date</th>
+          <tr className="bg-surface-secondary/50">
+            <th className="text-left py-2.5 px-4 text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">ID / Type</th>
+            <th className="text-left py-2.5 px-4 text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">Description</th>
+            <th className="text-left py-2.5 px-4 text-[11px] font-semibold text-foreground-muted uppercase tracking-wider hidden md:table-cell">Demandeur</th>
+            <th className="text-left py-2.5 px-4 text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">Statut</th>
+            <th className="text-left py-2.5 px-4 text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">Priorité</th>
+            <th className="text-left py-2.5 px-4 text-[11px] font-semibold text-foreground-muted uppercase tracking-wider hidden lg:table-cell">SLA</th>
+            <th className="text-left py-2.5 px-4 text-[11px] font-semibold text-foreground-muted uppercase tracking-wider hidden sm:table-cell">Date</th>
+            <th className="text-left py-2.5 px-4 text-[11px] font-semibold text-foreground-muted uppercase tracking-wider hidden lg:table-cell">Assigné</th>
           </tr>
         </thead>
         <tbody>
-          {tickets.map((ticket) => (
-            <tr
-              key={ticket.id}
-              onClick={() => router.push(`/tickets/${ticket.id}`)}
-              className="hover:bg-surface-hover transition-colors cursor-pointer group"
-            >
-              <td className="py-3.5 px-4">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-sm font-medium text-foreground group-hover:text-accent transition-colors line-clamp-1">
+          {tickets.map((ticket) => {
+            const sla = getSlaLabel(ticket);
+            return (
+              <tr
+                key={ticket.id}
+                onClick={() => router.push(`/tickets/${ticket.id}`)}
+                className="hover:bg-surface-hover/60 transition-colors cursor-pointer group"
+              >
+                <td className="py-3 px-4">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[12px] font-semibold text-foreground-secondary tabular-nums">{ticket.key}</span>
+                    <span className="text-[11px] text-foreground-muted">{TYPE_LABELS[ticket.type]}</span>
+                  </div>
+                </td>
+                <td className="py-3 px-4 max-w-[280px]">
+                  <span className="text-[13px] font-medium text-foreground group-hover:text-accent transition-colors line-clamp-1">
                     {ticket.title}
                   </span>
-                  <span className="text-[11px] text-foreground-muted">{ticket.key}</span>
-                </div>
-              </td>
-              <td className="py-3.5 px-4">
-                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground-secondary">
-                  <span className={`h-2 w-2 rounded-full ${STATUS_DOT[ticket.status]}`} />
-                  {STATUS_LABELS[ticket.status]}
-                </span>
-              </td>
-              <td className="py-3.5 px-4">
-                <span className="text-xs font-medium" style={{ color: PRIORITY_COLORS[ticket.priority] }}>
-                  {PRIORITY_LABELS[ticket.priority]}
-                </span>
-              </td>
-              <td className="py-3.5 px-4 hidden md:table-cell">
-                <span className="text-sm text-foreground-secondary">
-                  {ticket.requesterFirstName} {ticket.requesterLastName}
-                </span>
-              </td>
-              <td className="py-3.5 px-4 text-right hidden sm:table-cell">
-                <span className="text-xs text-foreground-muted">
-                  {new Date(ticket.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
-                </span>
-              </td>
-            </tr>
-          ))}
+                </td>
+                <td className="py-3 px-4 hidden md:table-cell">
+                  <span className="text-[13px] text-foreground-secondary">
+                    {ticket.requesterFirstName} {ticket.requesterLastName}
+                  </span>
+                </td>
+                <td className="py-3 px-4">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground-secondary">
+                    <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[ticket.status]}`} />
+                    {STATUS_LABELS[ticket.status]}
+                  </span>
+                </td>
+                <td className="py-3 px-4">
+                  <span className="text-xs font-medium" style={{ color: PRIORITY_COLORS[ticket.priority] }}>
+                    {PRIORITY_LABELS[ticket.priority]}
+                  </span>
+                </td>
+                <td className="py-3 px-4 hidden lg:table-cell">
+                  {sla ? (
+                    <span className={`text-xs font-medium ${sla.className}`}>{sla.text}</span>
+                  ) : (
+                    <span className="text-xs text-foreground-muted/40">—</span>
+                  )}
+                </td>
+                <td className="py-3 px-4 hidden sm:table-cell">
+                  <span className="text-xs text-foreground-muted tabular-nums">
+                    {new Date(ticket.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                  </span>
+                </td>
+                <td className="py-3 px-4 hidden lg:table-cell">
+                  {ticket.assignedAdmin ? (
+                    <span className="text-xs text-foreground-secondary">
+                      {ticket.assignedAdmin.firstName} {ticket.assignedAdmin.lastName?.charAt(0)}.
+                    </span>
+                  ) : (
+                    <span className="text-xs text-foreground-muted/40">—</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -573,15 +624,17 @@ function AccueilSkeleton() {
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="h-[110px] rounded-2xl bg-surface-tertiary" />
+          <div key={i} className="h-[120px] rounded-2xl bg-surface-tertiary" />
         ))}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 h-[320px] rounded-2xl bg-surface-tertiary" />
+        <div className="h-[320px] rounded-2xl bg-surface-tertiary" />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {Array.from({ length: 2 }).map((_, i) => (
-          <div key={i} className="h-[320px] rounded-2xl bg-surface-tertiary" />
-        ))}
+        <div className="h-[280px] rounded-2xl bg-surface-tertiary" />
+        <div className="h-[280px] rounded-2xl bg-surface-tertiary" />
       </div>
-      <div className="h-[320px] rounded-2xl bg-surface-tertiary" />
       <div className="h-[360px] rounded-2xl bg-surface-tertiary" />
     </div>
   );
@@ -739,20 +792,24 @@ export default function AccueilPage() {
 
   const stats = useMemo(() => {
     const byStatus = (s: TicketStatus) => filteredTickets.filter((t) => t.status === s).length;
-    const overdue = filteredTickets.filter((t) => t.slaBreachedAt && t.status !== 'CLOSED' && t.status !== 'RESOLVED').length;
-    const urgent = filteredTickets.filter((t) => (t.priority === 'CRITICAL' || t.priority === 'HIGH') && t.status !== 'CLOSED' && t.status !== 'RESOLVED').length;
+    const overdue = filteredTickets.filter((t) => {
+      if (t.status === 'RESOLVED' || t.status === 'CLOSED') return false;
+      if (!t.slaBreachedAt) return false;
+      return new Date(t.slaBreachedAt) <= new Date();
+    }).length;
+    const urgent = filteredTickets.filter((t) => t.priority === 'HIGH' || t.priority === 'CRITICAL').length;
 
     return [
-      { key: 'total', label: 'Total tickets', count: filteredTickets.length, icon: cardIcons.total, color: '#818cf8', bgColor: '#818cf8', href: '/tickets' },
-      { key: 'new', label: 'Nouveaux', count: byStatus('NEW'), icon: cardIcons.new, color: '#818cf8', bgColor: '#818cf8', href: '/tickets?status=NEW' },
-      { key: 'in_progress', label: 'En cours', count: byStatus('IN_PROGRESS'), icon: cardIcons.inProgress, color: '#fbbf24', bgColor: '#fbbf24', href: '/tickets?status=IN_PROGRESS' },
-      { key: 'on_hold', label: 'En attente', count: byStatus('ON_HOLD'), icon: cardIcons.onHold, color: '#71717a', bgColor: '#71717a', href: '/tickets?status=ON_HOLD' },
-      { key: 'resolved', label: 'Résolus', count: byStatus('RESOLVED'), icon: cardIcons.resolved, color: '#4ade80', bgColor: '#4ade80', href: '/tickets?status=RESOLVED' },
-      { key: 'closed', label: 'Fermés', count: byStatus('CLOSED'), icon: cardIcons.closed, color: '#52525b', bgColor: '#52525b', href: '/tickets?status=CLOSED' },
-      { key: 'overdue', label: 'En retard', count: overdue, icon: cardIcons.overdue, color: '#fbbf24', bgColor: '#fbbf24', href: '/tickets?view=overdue' },
-      { key: 'urgent', label: 'Urgents / Critiques', count: urgent, icon: cardIcons.urgent, color: '#f87171', bgColor: '#f87171', href: '/tickets?view=high_priority' },
+      { key: 'total', label: 'Total tickets', count: filteredTickets.length, icon: cardIcons.total, iconBg: '#818cf8', href: '/tickets' },
+      { key: 'new', label: 'Nouveaux', count: byStatus('NEW'), icon: cardIcons.new, iconBg: '#3b82f6', href: '/tickets?status=NEW' },
+      { key: 'in_progress', label: 'En cours', count: byStatus('IN_PROGRESS'), icon: cardIcons.inProgress, iconBg: '#fbbf24', href: '/tickets?status=IN_PROGRESS' },
+      { key: 'on_hold', label: 'En attente', count: byStatus('ON_HOLD'), icon: cardIcons.onHold, iconBg: '#71717a', href: '/tickets?status=ON_HOLD' },
+      { key: 'resolved', label: 'Résolus', count: byStatus('RESOLVED'), icon: cardIcons.resolved, iconBg: '#4ade80', href: '/tickets?status=RESOLVED' },
+      { key: 'closed', label: 'Fermés', count: byStatus('CLOSED'), icon: cardIcons.closed, iconBg: '#52525b', href: '/tickets?status=CLOSED' },
+      { key: 'overdue', label: 'En retard', count: overdue, icon: cardIcons.overdue, iconBg: '#fb923c', href: '/tickets?sla=overdue' },
+      { key: 'urgent', label: 'Urgents / Critiques', count: urgent, icon: cardIcons.urgent, iconBg: '#f87171', href: '/tickets?priority=HIGH' },
     ];
-  }, [filteredTickets, dateRange]);
+  }, [filteredTickets]);
 
   const recentTickets = useMemo(() => {
     return [...filteredTickets]
@@ -806,25 +863,33 @@ export default function AccueilPage() {
         />
       </div>
 
-      {/* Stat Cards */}
+      {/* Stat Cards — 8 cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {stats.map((s) => (
-          <StatCard key={s.key} label={s.label} count={s.count} icon={s.icon} color={s.color} bgColor={s.bgColor} href={s.href} />
+          <StatCard key={s.key} label={s.label} count={s.count} icon={s.icon} iconBg={s.iconBg} href={s.href} />
         ))}
       </div>
 
-      {/* Charts — 2 columns top, full-width below */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ChartCard title="Répartition par statut">
-          <StatusBarChart tickets={filteredTickets} />
-        </ChartCard>
-        <ChartCard title="Tickets par type">
-          <TypePieChart tickets={filteredTickets} />
-        </ChartCard>
-      </div>
-      <ChartCard title="Tickets créés dans le temps">
+      {/* Row 2: Area chart (full width) */}
+      <ChartCard
+        title="Tickets créés"
+        subtitle="Évolution sur la période"
+        headerRight={
+          <span className="text-2xl font-bold text-foreground tabular-nums">{filteredTickets.length}</span>
+        }
+      >
         <CreatedOverTimeChart tickets={filteredTickets} dateRange={dateRange} />
       </ChartCard>
+
+      {/* Row 3: Type bars (1/2) + Resolution rate (1/2) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ChartCard title="Tickets par type" subtitle="Catégories les plus fréquentes">
+          <TypeBarsChart tickets={filteredTickets} />
+        </ChartCard>
+        <ChartCard title="Taux de résolution" subtitle="Tickets résolus et fermés">
+          <ResolutionRateChart tickets={filteredTickets} />
+        </ChartCard>
+      </div>
 
       {/* Recent Tickets */}
       <div className="rounded-2xl bg-surface border border-th-border overflow-hidden">

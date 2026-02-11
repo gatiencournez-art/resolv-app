@@ -5,20 +5,21 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { api } from '@/lib/api';
-import { getAccessToken } from '@/lib/auth';
+import { getValidAccessToken } from '@/lib/auth';
 import { Ticket, TicketStatus, TicketPriority } from '@/lib/types';
 
 // ============================================================================
 // CONFIG
 // ============================================================================
 
-const COLUMNS: { status: TicketStatus; label: string; dotColor: string }[] = [
+const MAIN_COLUMNS: { status: TicketStatus; label: string; dotColor: string }[] = [
   { status: 'NEW', label: 'Nouveau', dotColor: 'bg-[var(--status-new)]' },
   { status: 'IN_PROGRESS', label: 'En cours', dotColor: 'bg-[var(--status-progress)]' },
   { status: 'ON_HOLD', label: 'En attente', dotColor: 'bg-[var(--status-hold)]' },
   { status: 'RESOLVED', label: 'Résolu', dotColor: 'bg-[var(--status-resolved)]' },
-  { status: 'CLOSED', label: 'Fermé', dotColor: 'bg-[var(--status-closed)]' },
 ];
+
+const CLOSED_COLUMN = { status: 'CLOSED' as TicketStatus, label: 'Fermé', dotColor: 'bg-[var(--status-closed)]' };
 
 const PRIORITY_INDICATOR: Record<TicketPriority, { label: string; cls: string }> = {
   LOW: { label: 'Basse', cls: 'text-[var(--priority-low)]' },
@@ -50,7 +51,7 @@ function TicketCard({
     <div
       draggable
       onDragStart={(e) => onDragStart(e, ticket)}
-      className="bg-surface dark:bg-white/[0.03] rounded-xl border border-th-border dark:border-white/[0.06] p-3.5 cursor-grab active:cursor-grabbing hover:border-accent/30 hover:shadow-sm transition-all duration-150 group"
+      className="bg-surface rounded-xl border border-th-border p-3.5 cursor-grab active:cursor-grabbing hover:border-accent/30 hover:shadow-sm transition-all duration-150 group"
     >
       <div className="flex items-center justify-between mb-2">
         <Link
@@ -74,7 +75,7 @@ function TicketCard({
       </Link>
 
       <div className="flex items-center justify-between mt-3">
-        <span className="text-[10px] text-foreground-muted bg-surface-tertiary dark:bg-white/[0.04] px-2 py-1 rounded-lg font-medium">
+        <span className="text-[10px] text-foreground-muted bg-surface-tertiary px-2 py-1 rounded-lg font-medium">
           {TYPE_SHORT[ticket.type] || ticket.type}
         </span>
         <span className="text-[10px] text-foreground-muted">
@@ -98,7 +99,7 @@ function KanbanColumn({
   onDragOver,
   onDragLeave,
 }: {
-  col: typeof COLUMNS[number];
+  col: typeof MAIN_COLUMNS[number];
   tickets: Ticket[];
   onDragStart: (e: React.DragEvent, ticket: Ticket) => void;
   onDrop: (e: React.DragEvent, status: TicketStatus) => void;
@@ -109,7 +110,7 @@ function KanbanColumn({
   return (
     <div
       className={`flex flex-col flex-1 min-w-[220px] rounded-2xl ${
-        isDragOver ? 'bg-accent-muted ring-2 ring-accent/50' : 'bg-surface-tertiary dark:bg-white/[0.02]'
+        isDragOver ? 'bg-accent-muted ring-2 ring-accent/50' : 'bg-surface-tertiary '
       } transition-all duration-150`}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
@@ -119,7 +120,7 @@ function KanbanColumn({
         <div className="flex items-center gap-2.5">
           <span className={`w-2.5 h-2.5 rounded-full ${col.dotColor}`} />
           <h3 className="text-sm font-semibold text-foreground">{col.label}</h3>
-          <span className="text-xs font-medium text-foreground-muted bg-surface dark:bg-white/[0.06] px-2 py-0.5 rounded-full">
+          <span className="text-xs font-medium text-foreground-muted bg-surface px-2 py-0.5 rounded-full">
             {tickets.length}
           </span>
         </div>
@@ -157,7 +158,7 @@ export default function KanbanPage() {
 
   useEffect(() => {
     const load = async () => {
-      const token = getAccessToken();
+      const token = await getValidAccessToken();
       if (!token) return;
       try {
         const res = (await api.getTickets(token, { limit: '100' })) as { data: Ticket[] };
@@ -185,7 +186,7 @@ export default function KanbanPage() {
       prev.map((t) => (t.id === ticket.id ? { ...t, status: newStatus } : t)),
     );
 
-    const token = getAccessToken();
+    const token = await getValidAccessToken();
     if (!token) return;
 
     try {
@@ -207,40 +208,77 @@ export default function KanbanPage() {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-5 gap-4">
-          {COLUMNS.map((col) => (
-            <div key={col.status} className="rounded-2xl bg-surface-tertiary dark:bg-white/[0.02]">
-              <div className="px-4 py-3.5 flex items-center gap-2.5">
-                <span className={`w-2.5 h-2.5 rounded-full ${col.dotColor}`} />
-                <div className="skeleton h-4 w-20 rounded-lg" />
+        <>
+          <div className="grid grid-cols-4 gap-4">
+            {MAIN_COLUMNS.map((col) => (
+              <div key={col.status} className="rounded-2xl bg-surface-tertiary ">
+                <div className="px-4 py-3.5 flex items-center gap-2.5">
+                  <span className={`w-2.5 h-2.5 rounded-full ${col.dotColor}`} />
+                  <div className="skeleton h-4 w-20 rounded-lg" />
+                </div>
+                <div className="px-2.5 pb-3 space-y-2.5">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="bg-surface rounded-xl border border-th-border dark:border-white/[0.06] p-3.5 space-y-2.5">
+                      <div className="skeleton h-3 w-12 rounded" />
+                      <div className="skeleton h-4 w-full rounded" />
+                      <div className="skeleton h-3 w-20 rounded" />
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="px-2.5 pb-3 space-y-2.5">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="bg-surface dark:bg-white/[0.03] rounded-xl border border-th-border dark:border-white/[0.06] p-3.5 space-y-2.5">
-                    <div className="skeleton h-3 w-12 rounded" />
-                    <div className="skeleton h-4 w-full rounded" />
-                    <div className="skeleton h-3 w-20 rounded" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+          <div className="skeleton h-24 rounded-2xl" />
+        </>
       ) : (
-        <div className="grid grid-cols-5 gap-4">
-          {COLUMNS.map((col) => (
-            <KanbanColumn
-              key={col.status}
-              col={col}
-              tickets={tickets.filter((t) => t.status === col.status)}
-              onDragStart={handleDragStart}
-              onDrop={handleDrop}
-              isDragOver={dragOverCol === col.status}
-              onDragOver={(e) => handleDragOver(e, col.status)}
-              onDragLeave={() => setDragOverCol(null)}
-            />
-          ))}
-        </div>
+        <>
+          {/* Main 4 columns */}
+          <div className="grid grid-cols-4 gap-4">
+            {MAIN_COLUMNS.map((col) => (
+              <KanbanColumn
+                key={col.status}
+                col={col}
+                tickets={tickets.filter((t) => t.status === col.status)}
+                onDragStart={handleDragStart}
+                onDrop={handleDrop}
+                isDragOver={dragOverCol === col.status}
+                onDragOver={(e) => handleDragOver(e, col.status)}
+                onDragLeave={() => setDragOverCol(null)}
+              />
+            ))}
+          </div>
+
+          {/* Closed section (horizontal) */}
+          <div
+            className={`rounded-2xl p-4 transition-all duration-150 ${
+              dragOverCol === 'CLOSED'
+                ? 'bg-accent-muted ring-2 ring-accent/50'
+                : 'bg-surface-tertiary '
+            }`}
+            onDragOver={(e) => handleDragOver(e, 'CLOSED')}
+            onDragLeave={() => setDragOverCol(null)}
+            onDrop={(e) => handleDrop(e, 'CLOSED')}
+          >
+            <div className="flex items-center gap-2.5 mb-3">
+              <span className={`w-2.5 h-2.5 rounded-full ${CLOSED_COLUMN.dotColor}`} />
+              <h3 className="text-sm font-semibold text-foreground">{CLOSED_COLUMN.label}</h3>
+              <span className="text-xs font-medium text-foreground-muted bg-surface px-2 py-0.5 rounded-full">
+                {tickets.filter((t) => t.status === 'CLOSED').length}
+              </span>
+            </div>
+            {tickets.filter((t) => t.status === 'CLOSED').length > 0 ? (
+              <div className="grid grid-cols-4 gap-2.5">
+                {tickets
+                  .filter((t) => t.status === 'CLOSED')
+                  .map((ticket) => (
+                    <TicketCard key={ticket.id} ticket={ticket} onDragStart={handleDragStart} />
+                  ))}
+              </div>
+            ) : (
+              <div className="text-center py-4 text-xs text-foreground-muted">Aucun ticket fermé</div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );

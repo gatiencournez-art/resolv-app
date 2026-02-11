@@ -173,7 +173,7 @@ export default function UsersPage() {
   );
 
   return (
-    <div className="space-y-5 max-w-[1200px]">
+    <div className="space-y-5">
       <div>
         <h1 className="text-xl font-semibold text-foreground">Gestion des utilisateurs</h1>
         <p className="text-sm text-foreground-muted mt-0.5">Attribuez les rôles et gérez les accès</p>

@@ -6,7 +6,7 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 // TYPES
 // ============================================================================
 
-export type ThemeMode = 'light' | 'dark' | 'system';
+export type ThemeMode = 'light' | 'dark';
 export type Density = 'comfortable' | 'compact';
 
 export interface ColorTheme {
@@ -14,6 +14,8 @@ export interface ColorTheme {
   name: string;
   accent: string;
   accentHover: string;
+  secondary: string;
+  secondaryHover: string;
   sidebarBg: string;
   sidebarText: string;
   sidebarTextActive: string;
@@ -29,9 +31,11 @@ export interface ColorTheme {
 export const PRESET_THEMES: ColorTheme[] = [
   {
     id: 'default',
-    name: 'Indigo',
+    name: 'Indigo & Teal',
     accent: '#6366f1',
     accentHover: '#4f46e5',
+    secondary: '#2dd4bf',
+    secondaryHover: '#14b8a6',
     sidebarBg: '#0d0d14',
     sidebarText: 'rgba(255,255,255,0.5)',
     sidebarTextActive: 'rgba(255,255,255,0.95)',
@@ -41,21 +45,25 @@ export const PRESET_THEMES: ColorTheme[] = [
   },
   {
     id: 'ocean',
-    name: 'Océan',
-    accent: '#0ea5e9',
-    accentHover: '#0284c7',
+    name: 'Bleu & Cyan',
+    accent: '#3b82f6',
+    accentHover: '#2563eb',
+    secondary: '#22d3ee',
+    secondaryHover: '#06b6d4',
     sidebarBg: '#0c1929',
     sidebarText: 'rgba(255,255,255,0.5)',
     sidebarTextActive: 'rgba(255,255,255,0.95)',
-    sidebarBorder: 'rgba(14,165,233,0.1)',
-    sidebarHover: 'rgba(14,165,233,0.08)',
-    sidebarActive: '#0ea5e9',
+    sidebarBorder: 'rgba(59,130,246,0.1)',
+    sidebarHover: 'rgba(59,130,246,0.08)',
+    sidebarActive: '#3b82f6',
   },
   {
     id: 'emerald',
-    name: 'Émeraude',
+    name: 'Émeraude & Lime',
     accent: '#10b981',
     accentHover: '#059669',
+    secondary: '#a3e635',
+    secondaryHover: '#84cc16',
     sidebarBg: '#0a1a14',
     sidebarText: 'rgba(255,255,255,0.5)',
     sidebarTextActive: 'rgba(255,255,255,0.95)',
@@ -65,9 +73,11 @@ export const PRESET_THEMES: ColorTheme[] = [
   },
   {
     id: 'violet',
-    name: 'Violet',
+    name: 'Violet & Rose',
     accent: '#8b5cf6',
     accentHover: '#7c3aed',
+    secondary: '#f472b6',
+    secondaryHover: '#ec4899',
     sidebarBg: '#110d1a',
     sidebarText: 'rgba(255,255,255,0.5)',
     sidebarTextActive: 'rgba(255,255,255,0.95)',
@@ -77,9 +87,11 @@ export const PRESET_THEMES: ColorTheme[] = [
   },
   {
     id: 'rose',
-    name: 'Rose',
+    name: 'Rose & Ambre',
     accent: '#f43f5e',
     accentHover: '#e11d48',
+    secondary: '#fbbf24',
+    secondaryHover: '#f59e0b',
     sidebarBg: '#140a0d',
     sidebarText: 'rgba(255,255,255,0.5)',
     sidebarTextActive: 'rgba(255,255,255,0.95)',
@@ -88,22 +100,26 @@ export const PRESET_THEMES: ColorTheme[] = [
     sidebarActive: '#f43f5e',
   },
   {
-    id: 'amber',
-    name: 'Ambre',
-    accent: '#f59e0b',
-    accentHover: '#d97706',
+    id: 'sunset',
+    name: 'Orange & Fuchsia',
+    accent: '#f97316',
+    accentHover: '#ea580c',
+    secondary: '#d946ef',
+    secondaryHover: '#c026d3',
     sidebarBg: '#141008',
     sidebarText: 'rgba(255,255,255,0.5)',
     sidebarTextActive: 'rgba(255,255,255,0.95)',
-    sidebarBorder: 'rgba(245,158,11,0.1)',
-    sidebarHover: 'rgba(245,158,11,0.08)',
-    sidebarActive: '#f59e0b',
+    sidebarBorder: 'rgba(249,115,22,0.1)',
+    sidebarHover: 'rgba(249,115,22,0.08)',
+    sidebarActive: '#f97316',
   },
   {
     id: 'slate',
-    name: 'Ardoise',
+    name: 'Ardoise & Bleu',
     accent: '#64748b',
     accentHover: '#475569',
+    secondary: '#60a5fa',
+    secondaryHover: '#3b82f6',
     sidebarBg: '#0f1114',
     sidebarText: 'rgba(255,255,255,0.5)',
     sidebarTextActive: 'rgba(255,255,255,0.95)',
@@ -113,9 +129,11 @@ export const PRESET_THEMES: ColorTheme[] = [
   },
   {
     id: 'cyan',
-    name: 'Cyan',
+    name: 'Cyan & Indigo',
     accent: '#06b6d4',
     accentHover: '#0891b2',
+    secondary: '#818cf8',
+    secondaryHover: '#6366f1',
     sidebarBg: '#0a1517',
     sidebarText: 'rgba(255,255,255,0.5)',
     sidebarTextActive: 'rgba(255,255,255,0.95)',
@@ -130,14 +148,14 @@ export const PRESET_THEMES: ColorTheme[] = [
 // ============================================================================
 
 interface ThemeContextType {
-  // Theme mode (light/dark/system)
+  // Theme mode (light/dark)
   themeMode: ThemeMode;
   setThemeMode: (mode: ThemeMode) => void;
-  resolvedTheme: 'light' | 'dark'; // The actual applied theme
-  theme: 'light' | 'dark'; // Alias for resolvedTheme (backwards compat)
+  resolvedTheme: 'light' | 'dark';
+  theme: 'light' | 'dark';
   toggleTheme: () => void;
 
-  // Accent colors
+  // Color palette
   colorTheme: ColorTheme;
   setColorTheme: (theme: ColorTheme) => void;
   customColors: Partial<ColorTheme>;
@@ -163,6 +181,8 @@ function applyColorTheme(theme: ColorTheme, customColors: Partial<ColorTheme>) {
 
   root.style.setProperty('--accent', merged.accent);
   root.style.setProperty('--accent-hover', merged.accentHover);
+  root.style.setProperty('--secondary', merged.secondary);
+  root.style.setProperty('--secondary-hover', merged.secondaryHover);
   root.style.setProperty('--sidebar-bg', merged.sidebarBg);
   root.style.setProperty('--sidebar-text', merged.sidebarText);
   root.style.setProperty('--sidebar-text-active', merged.sidebarTextActive);
@@ -184,25 +204,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [animationsEnabled, setAnimationsEnabledState] = useState(true);
   const [mounted, setMounted] = useState(false);
 
-  // Resolve system theme
-  const resolveTheme = useCallback((mode: ThemeMode): 'light' | 'dark' => {
-    if (mode === 'system') {
-      if (typeof window !== 'undefined') {
-        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      }
-      return 'dark';
-    }
-    return mode;
-  }, []);
-
   // Load from localStorage on mount
   useEffect(() => {
-    const storedThemeMode = localStorage.getItem('resolv-theme-mode') as ThemeMode | null;
-    if (storedThemeMode === 'light' || storedThemeMode === 'dark' || storedThemeMode === 'system') {
+    const storedThemeMode = localStorage.getItem('resolv-theme-mode');
+    if (storedThemeMode === 'light' || storedThemeMode === 'dark') {
       setThemeModeState(storedThemeMode);
-      setResolvedTheme(resolveTheme(storedThemeMode));
+      setResolvedTheme(storedThemeMode);
     } else {
-      // Backwards compat with old 'resolv-theme' key
+      // Backwards compat: migrate 'system' to 'dark'
       const oldTheme = localStorage.getItem('resolv-theme') as 'light' | 'dark' | null;
       if (oldTheme === 'light' || oldTheme === 'dark') {
         setThemeModeState(oldTheme);
@@ -237,20 +246,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
 
     setMounted(true);
-  }, [resolveTheme]);
-
-  // Listen to system theme changes
-  useEffect(() => {
-    if (!mounted || themeMode !== 'system') return;
-
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = (e: MediaQueryListEvent) => {
-      setResolvedTheme(e.matches ? 'dark' : 'light');
-    };
-
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, [mounted, themeMode]);
+  }, []);
 
   // Apply dark/light class
   useEffect(() => {
@@ -301,8 +297,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setThemeMode = useCallback((mode: ThemeMode) => {
     setThemeModeState(mode);
-    setResolvedTheme(resolveTheme(mode));
-  }, [resolveTheme]);
+    setResolvedTheme(mode);
+  }, []);
 
   const toggleTheme = useCallback(() => {
     const newMode = resolvedTheme === 'dark' ? 'light' : 'dark';
@@ -320,7 +316,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setAccentColor = useCallback((color: string, hover: string) => {
-    // Find matching preset or use custom
     const matchingPreset = PRESET_THEMES.find((t) => t.accent === color);
     if (matchingPreset) {
       setColorThemeState(matchingPreset);

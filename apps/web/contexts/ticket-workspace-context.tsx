@@ -110,19 +110,24 @@ export function TicketWorkspaceProvider({ children }: { children: ReactNode }) {
   const [isLoadingList, setIsLoadingList] = useState(true);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
 
-  // Read URL query params on mount (for click-to-filter from /assistance)
+  // Read URL query params (for click-to-filter from /accueil stat cards)
   const searchParams = useSearchParams();
-  const initializedFromUrl = useRef(false);
+  const lastParamsKey = useRef('');
 
   useEffect(() => {
-    if (initializedFromUrl.current) return;
-    initializedFromUrl.current = true;
+    const paramsKey = searchParams.toString();
+    // Skip if params haven't changed (avoids re-triggering on same page)
+    if (paramsKey === lastParamsKey.current) return;
+    lastParamsKey.current = paramsKey;
 
+    // If no filter params, don't override current view
     const statusParam = searchParams.get('status');
     const viewParam = searchParams.get('view');
     const typeParam = searchParams.get('type');
     const priorityParam = searchParams.get('priority');
     const slaParam = searchParams.get('sla');
+
+    if (!statusParam && !viewParam && !typeParam && !priorityParam && !slaParam) return;
 
     if (slaParam === 'overdue' || viewParam === 'overdue') {
       setActiveView('overdue');

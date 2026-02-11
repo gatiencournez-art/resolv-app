@@ -68,13 +68,10 @@ export function Select({ value, onChange, options, placeholder = 'Sélectionner.
         className={`
           w-full h-9 px-3 text-[13px] text-left flex items-center gap-2
           rounded-xl border transition-all duration-[180ms]
-          bg-surface dark:bg-white/[0.03]
-          border-th-border dark:border-white/[0.1]
-          text-foreground
-          hover:border-th-border-secondary dark:hover:border-white/[0.18]
-          focus:outline-none focus:ring-2 focus:ring-accent/30
+          bg-surface           border-th-border          text-foreground
+          hover:border-th-border-secondary          focus:outline-none focus:ring-2 focus:ring-accent/30
           disabled:opacity-50 disabled:cursor-not-allowed
-          ${isOpen ? 'ring-2 ring-accent/30 border-accent/40 dark:border-accent/40' : ''}
+          ${isOpen ? 'ring-2 ring-accent/30 border-accent/40' : ''}
         `}
       >
         {selected?.dot && <span className={`w-2 h-2 rounded-full ${selected.dot} flex-shrink-0`} />}
@@ -90,11 +87,8 @@ export function Select({ value, onChange, options, placeholder = 'Sélectionner.
           className="
             absolute z-50 mt-1.5 w-full
             rounded-2xl overflow-hidden p-1.5
-            bg-surface dark:bg-[#1a1a2e]
-            backdrop-blur-xl
-            border border-th-border dark:border-white/[0.1]
-            shadow-dropdown dark:shadow-[0_12px_40px_rgba(0,0,0,0.5)]
-            animate-slide-up-sm
+            bg-surface            backdrop-blur-xl
+            border border-th-border            shadow-dropdown            animate-slide-up-sm
             max-h-60 overflow-y-auto
           "
         >
@@ -113,7 +107,7 @@ export function Select({ value, onChange, options, placeholder = 'Sélectionner.
                   rounded-xl transition-all duration-[120ms]
                   ${isSelected
                     ? 'bg-accent/10 text-accent'
-                    : 'text-foreground hover:bg-surface-hover dark:hover:bg-white/[0.06]'
+                    : 'text-foreground hover:bg-surface-hover'
                   }
                 `}
               >

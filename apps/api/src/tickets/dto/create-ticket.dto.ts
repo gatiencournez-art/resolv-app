@@ -4,6 +4,7 @@ import {
   IsEmail,
   IsEnum,
   IsOptional,
+  IsUUID,
   MaxLength,
 } from 'class-validator';
 import { TicketType, TicketPriority } from '@prisma/client';
@@ -40,4 +41,8 @@ export class CreateTicketDto {
   @IsEmail({}, { message: 'Email du demandeur invalide' })
   @IsNotEmpty({ message: 'Email du demandeur requis' })
   requesterEmail: string;
+
+  @IsUUID('4', { message: 'ID administrateur invalide' })
+  @IsOptional()
+  assignedAdminId?: string;
 }

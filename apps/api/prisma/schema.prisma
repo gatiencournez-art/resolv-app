@@ -100,9 +100,10 @@ model Organization {
   // Relations
   users         User[]
   tickets       Ticket[]
-  slaPolicies   SlaPolicy[]
-  assets        Asset[]
-  notifications Notification[]
+  slaPolicies      SlaPolicy[]
+  ticketCategories TicketCategory[]
+  assets           Asset[]
+  notifications    Notification[]
 
   @@map("organizations")
 }
@@ -265,6 +266,26 @@ model SlaPolicy {
   @@unique([priority, organizationId])
   @@index([organizationId])
   @@map("sla_policies")
+}
+
+// ============================================================================
+// TICKET CATEGORY (custom per organization)
+// ============================================================================
+
+model TicketCategory {
+  id             String   @id @default(uuid())
+  name           String
+  color          String   // hex color code e.g. #6366f1
+  organizationId String
+  isActive       Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("ticket_categories")
 }
 
 // ============================================================================

@@ -103,7 +103,7 @@ export function MessagesList({ messages, isLoading }: MessagesListProps) {
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-semibold shadow-sm ${
                     isOwn
                       ? 'bg-accent text-white'
-                      : 'bg-surface-tertiary dark:bg-white/[0.08] text-foreground-secondary border border-white/[0.06]'
+                      : 'bg-surface-tertiary text-foreground-secondary border border-th-border/40'
                   }`}
                 >
                   {initials}
@@ -140,7 +140,7 @@ export function MessagesList({ messages, isLoading }: MessagesListProps) {
                   relative inline-block px-3.5 py-2 text-[13px] leading-relaxed
                   ${isOwn
                     ? `bg-accent text-white ${showAvatar ? 'rounded-2xl rounded-tr-md' : isLastInGroup ? 'rounded-2xl rounded-tr-md' : 'rounded-2xl rounded-r-md'}`
-                    : `bg-surface-secondary dark:bg-white/[0.04] text-foreground border border-th-border/30 dark:border-white/[0.06] ${showAvatar ? 'rounded-2xl rounded-tl-md' : isLastInGroup ? 'rounded-2xl rounded-tl-md' : 'rounded-2xl rounded-l-md'}`
+                    : `bg-surface-secondary text-foreground border border-th-border/40 ${showAvatar ? 'rounded-2xl rounded-tl-md' : isLastInGroup ? 'rounded-2xl rounded-tl-md' : 'rounded-2xl rounded-l-md'}`
                   }
                 `}
               >

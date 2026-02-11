@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { api } from '@/lib/api';
-import { getAccessToken } from '@/lib/auth';
+import { getValidAccessToken } from '@/lib/auth';
 import { Ticket, Message, TicketStatus, User } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardContent, Select } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
@@ -44,7 +44,7 @@ export default function TicketDetailPage() {
   const isAdmin = user?.role === 'ADMIN';
 
   const fetchTicket = useCallback(async () => {
-    const token = getAccessToken();
+    const token = await getValidAccessToken();
     if (!token) return;
 
     try {
@@ -59,7 +59,7 @@ export default function TicketDetailPage() {
   }, [ticketId, router]);
 
   const fetchAdmins = useCallback(async () => {
-    const token = getAccessToken();
+    const token = await getValidAccessToken();
     if (!token || !isAdmin) return;
 
     try {
@@ -77,7 +77,7 @@ export default function TicketDetailPage() {
   }, [fetchTicket, fetchAdmins]);
 
   const handleStatusChange = async (newStatus: TicketStatus) => {
-    const token = getAccessToken();
+    const token = await getValidAccessToken();
     if (!token || !ticket) return;
 
     setIsUpdating(true);
@@ -90,7 +90,7 @@ export default function TicketDetailPage() {
   };
 
   const handleAssign = async (adminId: string | null) => {
-    const token = getAccessToken();
+    const token = await getValidAccessToken();
     if (!token || !ticket) return;
 
     setIsUpdating(true);
@@ -103,7 +103,7 @@ export default function TicketDetailPage() {
   };
 
   const handleSendMessage = async (content: string) => {
-    const token = getAccessToken();
+    const token = await getValidAccessToken();
     if (!token) return;
 
     const newMessage = (await api.createMessage(ticketId, content, token)) as Message;
@@ -176,6 +176,46 @@ export default function TicketDetailPage() {
             </CardContent>
           </Card>
 
+          {/* Attachments */}
+          {ticket.attachments && ticket.attachments.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Pièces jointes ({ticket.attachments.length})</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {ticket.attachments.map((att) => {
+                    const isImage = att.mimeType.startsWith('image/');
+                    const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '');
+                    return (
+                      <a
+                        key={att.id}
+                        href={`${apiBase}${att.url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2.5 p-2.5 rounded-xl bg-surface-secondary border border-th-border/50 hover:border-accent/30 hover:bg-accent/[0.03] transition-all group"
+                      >
+                        {isImage ? (
+                          <img src={`${apiBase}${att.url}`} alt={att.filename} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg bg-surface-tertiary flex items-center justify-center flex-shrink-0">
+                            <svg className="w-5 h-5 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                            </svg>
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium text-foreground truncate group-hover:text-accent transition-colors">{att.filename}</p>
+                          <p className="text-[10px] text-foreground-muted">{(att.size / 1024).toFixed(1)} Ko</p>
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Messages */}
           <Card>
             <CardHeader>
@@ -237,37 +277,35 @@ export default function TicketDetailPage() {
             <CardHeader>
               <CardTitle>Informations</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <p className="text-xs font-medium text-foreground-muted uppercase tracking-wide">Demandeur</p>
+            <CardContent className="grid grid-cols-2 gap-2">
+              <div className="p-2.5 rounded-xl bg-blue-500/[0.07]">
+                <p className="text-[10px] font-medium text-foreground-muted uppercase tracking-wide">Demandeur</p>
                 <p className="text-sm text-foreground mt-1">
                   {ticket.requesterFirstName} {ticket.requesterLastName}
                 </p>
-                <p className="text-sm text-foreground-muted">{ticket.requesterEmail}</p>
+                <p className="text-xs text-foreground-muted">{ticket.requesterEmail}</p>
               </div>
 
-              {isAdmin && !ticket.assignedAdmin && (
-                <div>
-                  <p className="text-xs font-medium text-foreground-muted uppercase tracking-wide">Assigné à</p>
-                  <p className="text-sm text-foreground-muted mt-1 italic">Non assigné</p>
-                </div>
-              )}
-              {isAdmin && ticket.assignedAdmin && (
-                <div>
-                  <p className="text-xs font-medium text-foreground-muted uppercase tracking-wide">Assigné à</p>
-                  <p className="text-sm text-foreground mt-1">
-                    {ticket.assignedAdmin.firstName} {ticket.assignedAdmin.lastName}
-                  </p>
+              {isAdmin && (
+                <div className="p-2.5 rounded-xl bg-emerald-500/[0.07]">
+                  <p className="text-[10px] font-medium text-foreground-muted uppercase tracking-wide">Assigné à</p>
+                  {ticket.assignedAdmin ? (
+                    <p className="text-sm text-foreground mt-1">
+                      {ticket.assignedAdmin.firstName} {ticket.assignedAdmin.lastName}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-foreground-muted mt-1 italic">Non assigné</p>
+                  )}
                 </div>
               )}
 
-              <div>
-                <p className="text-xs font-medium text-foreground-muted uppercase tracking-wide">Type</p>
+              <div className="p-2.5 rounded-xl bg-indigo-500/[0.07]">
+                <p className="text-[10px] font-medium text-foreground-muted uppercase tracking-wide">Type</p>
                 <p className="text-sm text-foreground mt-1">{typeLabels[ticket.type] || ticket.type}</p>
               </div>
 
-              <div>
-                <p className="text-xs font-medium text-foreground-muted uppercase tracking-wide">Créé le</p>
+              <div className="p-2.5 rounded-xl bg-amber-500/[0.07]">
+                <p className="text-[10px] font-medium text-foreground-muted uppercase tracking-wide">Créé le</p>
                 <p className="text-sm text-foreground mt-1">
                   {new Date(ticket.createdAt).toLocaleDateString('fr-FR', {
                     day: '2-digit',
@@ -280,8 +318,8 @@ export default function TicketDetailPage() {
               </div>
 
               {ticket.resolvedAt && (
-                <div>
-                  <p className="text-xs font-medium text-foreground-muted uppercase tracking-wide">Résolu le</p>
+                <div className="p-2.5 rounded-xl bg-green-500/[0.07]">
+                  <p className="text-[10px] font-medium text-foreground-muted uppercase tracking-wide">Résolu le</p>
                   <p className="text-sm text-foreground mt-1">
                     {new Date(ticket.resolvedAt).toLocaleDateString('fr-FR', {
                       day: '2-digit',
@@ -293,8 +331,8 @@ export default function TicketDetailPage() {
               )}
 
               {ticket.closedAt && (
-                <div>
-                  <p className="text-xs font-medium text-foreground-muted uppercase tracking-wide">Fermé le</p>
+                <div className="p-2.5 rounded-xl bg-surface-tertiary/40">
+                  <p className="text-[10px] font-medium text-foreground-muted uppercase tracking-wide">Fermé le</p>
                   <p className="text-sm text-foreground mt-1">
                     {new Date(ticket.closedAt).toLocaleDateString('fr-FR', {
                       day: '2-digit',

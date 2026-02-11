@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { useTicketWorkspace, type TicketView } from '@/contexts/ticket-workspace-context';
 import { Select, MultiSelect } from '@/components/ui';
@@ -111,15 +110,6 @@ const TYPE_LABELS: Record<string, string> = {
   OTHER: 'Autre',
 };
 
-const TYPE_ICONS: Record<string, string> = {
-  SOFTWARE: '💻',
-  HARDWARE: '🖥️',
-  ACCESS: '🔑',
-  ONBOARDING: '👋',
-  OFFBOARDING: '🚪',
-  OTHER: '📋',
-};
-
 function relativeDate(dateStr: string): string {
   const now = new Date();
   const d = new Date(dateStr);
@@ -161,7 +151,6 @@ function FilterIcon() {
   );
 }
 
-
 // ============================================================================
 // TABLE HEADER CELL
 // ============================================================================
@@ -170,14 +159,13 @@ function ThCell({
   label,
   field,
   sortField,
-  sortDir,
   onSort,
   className = '',
 }: {
   label: string;
   field: SortField;
   sortField: SortField;
-  sortDir: SortDir;
+  sortDir?: SortDir;
   onSort: (f: SortField) => void;
   className?: string;
 }) {
@@ -187,9 +175,9 @@ function ThCell({
       <button
         onClick={() => onSort(field)}
         className={`
-          text-[11px] font-semibold uppercase tracking-wider
-          transition-colors hover:text-foreground
-          ${isActive ? 'text-accent' : 'text-foreground-muted/70'}
+          inline-flex items-center text-[10px] font-bold uppercase tracking-[0.08em]
+          transition-colors hover:text-foreground-secondary
+          ${isActive ? 'text-accent' : 'text-foreground-muted'}
         `}
       >
         {label}
@@ -206,14 +194,14 @@ function SlaIndicator({ ticket }: { ticket: Ticket }) {
   if (ticket.status === 'RESOLVED' || ticket.status === 'CLOSED') {
     if (ticket.slaBreachedAt) {
       return (
-        <span className="inline-flex items-center gap-1 text-[11px] text-rose-400 font-medium">
+        <span className="inline-flex items-center gap-1.5 text-[11px] text-rose-400 font-medium">
           <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
           Dépassé
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-medium">
+      <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 dark:text-emerald-400 font-medium">
         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
         Respecté
       </span>
@@ -222,7 +210,7 @@ function SlaIndicator({ ticket }: { ticket: Ticket }) {
 
   if (ticket.slaBreachedAt) {
     return (
-      <span className="inline-flex items-center gap-1 text-[11px] text-rose-400 font-medium">
+      <span className="inline-flex items-center gap-1.5 text-[11px] text-rose-400 font-medium">
         <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
         En retard
       </span>
@@ -230,8 +218,8 @@ function SlaIndicator({ ticket }: { ticket: Ticket }) {
   }
 
   return (
-    <span className="inline-flex items-center gap-1 text-[11px] text-foreground-muted/60">
-      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/60" />
+    <span className="inline-flex items-center gap-1.5 text-[11px] text-foreground-muted">
+      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/50" />
       OK
     </span>
   );
@@ -301,11 +289,11 @@ export function TicketListPanel() {
     (filters.assignees.length > 0 ? 1 : 0);
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 border-r border-th-border/60 dark:border-white/[0.06] bg-surface">
+    <div className="flex-1 flex flex-col min-w-0 bg-surface">
       {/* Header bar */}
-      <div className="flex-shrink-0 border-b border-th-border/60 dark:border-white/[0.06]">
-        {/* Top row: Title/view + Actions */}
-        <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-2">
+      <div className="flex-shrink-0 border-b border-th-border">
+        {/* Top row */}
+        <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
           {/* Mobile: view dropdown */}
           <div className="lg:hidden flex-1 max-w-[200px]">
             <Select
@@ -316,29 +304,19 @@ export function TicketListPanel() {
           </div>
 
           {/* Title (desktop) */}
-          <div className="hidden lg:flex items-center gap-2.5">
-            <h2 className="text-sm font-semibold text-foreground">Tickets</h2>
-            <span className="text-[11px] font-medium text-foreground-muted bg-surface-tertiary/80 px-2 py-0.5 rounded-full tabular-nums">
+          <div className="hidden lg:flex items-center gap-3">
+            <h2 className="text-[15px] font-semibold text-foreground">Tickets</h2>
+            <span className="text-[11px] font-semibold text-foreground-muted bg-surface-tertiary px-2.5 py-1 rounded-lg tabular-nums">
               {filteredTickets.length}
             </span>
           </div>
 
-          {/* New ticket button */}
-          <Link
-            href="/tickets/new"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-white text-[12px] font-medium transition-all duration-[180ms] shadow-sm hover:shadow-glow active:scale-[0.97]"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            <span className="hidden sm:inline">Nouveau</span>
-          </Link>
         </div>
 
         {/* Search bar */}
-        <div className="px-4 pb-2.5">
+        <div className="px-5 pb-3">
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground-muted pointer-events-none">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-foreground-muted pointer-events-none">
               <SearchIcon />
             </span>
             <input
@@ -346,12 +324,12 @@ export function TicketListPanel() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher par titre, clé ou description..."
-              className="w-full h-8 pl-9 pr-3 text-[13px] rounded-xl border border-th-border dark:border-white/[0.1] bg-surface-secondary/50 dark:bg-white/[0.03] text-foreground placeholder:text-foreground-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 focus:bg-surface transition-all duration-[180ms]"
+              className="w-full h-9 pl-10 pr-3 text-[13px] rounded-xl border border-th-border bg-surface-secondary text-foreground placeholder:text-foreground-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/40 transition-all duration-200"
             />
             {search && (
               <button
                 onClick={() => setSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-surface-hover transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-lg hover:bg-surface-hover transition-colors"
               >
                 <svg className="w-3.5 h-3.5 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -362,7 +340,7 @@ export function TicketListPanel() {
         </div>
 
         {/* Filter row */}
-        <div className="flex items-center gap-2 px-4 pb-3 flex-wrap">
+        <div className="flex items-center gap-2 px-5 pb-3.5 flex-wrap">
           <span className="text-foreground-muted flex items-center gap-1">
             <FilterIcon />
           </span>
@@ -412,7 +390,7 @@ export function TicketListPanel() {
               onClick={() =>
                 setFilters({ statuses: [], priorities: [], types: [], assignees: [] })
               }
-              className="inline-flex items-center gap-1 text-[11px] text-accent hover:text-accent-hover font-medium transition-colors px-1.5 py-0.5 rounded hover:bg-accent/5"
+              className="inline-flex items-center gap-1 text-[11px] text-accent hover:text-accent-hover font-medium transition-colors px-2 py-1 rounded-lg hover:bg-accent/5"
             >
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -426,42 +404,42 @@ export function TicketListPanel() {
       {/* Table */}
       <div className="flex-1 overflow-auto">
         {isLoadingList ? (
-          <div className="p-4 space-y-2">
+          <div className="p-5 space-y-2">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="skeleton h-12 w-full rounded-lg" style={{ animationDelay: `${i * 50}ms` }} />
+              <div key={i} className="skeleton h-14 w-full rounded-xl" style={{ animationDelay: `${i * 50}ms` }} />
             ))}
           </div>
         ) : filteredTickets.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 px-6">
-            <div className="w-12 h-12 rounded-2xl bg-surface-tertiary/60 dark:bg-white/[0.04] flex items-center justify-center mb-4">
-              <svg className="w-6 h-6 text-foreground-muted/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="flex flex-col items-center justify-center py-24 px-6">
+            <div className="w-14 h-14 rounded-2xl bg-surface-tertiary border border-th-border flex items-center justify-center mb-5">
+              <svg className="w-7 h-7 text-foreground-muted/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
             </div>
             <p className="text-sm font-medium text-foreground-secondary">Aucun ticket trouvé</p>
             {(search || hasActiveFilters) && (
-              <p className="text-xs text-foreground-muted mt-1.5">
+              <p className="text-xs text-foreground-muted mt-2">
                 Essayez de modifier vos filtres ou votre recherche
               </p>
             )}
           </div>
         ) : (
           <table className="w-full text-[13px]">
-            <thead className="sticky top-0 z-10 bg-surface/95 dark:bg-[#0d0d14]/95 backdrop-blur-sm border-b border-th-border/40 dark:border-white/[0.04]">
-              <tr>
-                <th className="pl-4 pr-2 py-2.5 text-left w-[100px]">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground-muted/70">ID / Type</span>
+            <thead className="sticky top-0 z-10 bg-surface/95 backdrop-blur-sm">
+              <tr className="border-b border-th-border">
+                <th className="pl-5 pr-2 py-3 text-left w-[100px]">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-foreground-muted">ID / Type</span>
                 </th>
-                <ThCell label="Description" field="title" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="px-2 py-2.5" />
-                <ThCell label="Demandeur" field="requester" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="px-2 py-2.5 hidden lg:table-cell" />
-                <ThCell label="Statut" field="status" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="px-2 py-2.5" />
-                <ThCell label="Priorité" field="priority" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="px-2 py-2.5 hidden sm:table-cell" />
-                <th className="px-2 py-2.5 text-left hidden xl:table-cell">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground-muted/70">SLA</span>
+                <ThCell label="Description" field="title" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="px-2 py-3" />
+                <ThCell label="Demandeur" field="requester" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="px-2 py-3 hidden lg:table-cell" />
+                <ThCell label="Statut" field="status" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="px-2 py-3" />
+                <ThCell label="Priorité" field="priority" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="px-2 py-3 hidden sm:table-cell" />
+                <th className="px-2 py-3 text-left hidden xl:table-cell">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-foreground-muted">SLA</span>
                 </th>
-                <ThCell label="Date" field="createdAt" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="px-2 py-2.5 hidden md:table-cell" />
+                <ThCell label="Date" field="createdAt" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="px-2 py-3 hidden md:table-cell" />
                 {isAdminView && (
-                  <ThCell label="Assigné" field="assignee" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="px-2 py-2.5 pr-4 hidden lg:table-cell" />
+                  <ThCell label="Assigné" field="assignee" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="px-2 py-3 pr-5 hidden lg:table-cell" />
                 )}
               </tr>
             </thead>
@@ -506,46 +484,46 @@ function TicketTableRow({
     <tr
       onClick={onClick}
       className={`
-        group cursor-pointer border-b border-th-border/20 dark:border-white/[0.03] transition-all duration-[120ms]
+        group cursor-pointer transition-all duration-100
         ${isSelected
-          ? 'bg-accent/[0.06] dark:bg-accent/[0.06]'
-          : 'hover:bg-surface-hover/60 dark:hover:bg-white/[0.02]'
+          ? 'bg-accent/[0.08] shadow-[inset_3px_0_0_0_var(--accent)]'
+          : 'hover:bg-surface-hover hover:shadow-[inset_2px_0_0_0_var(--accent-muted)]'
         }
       `}
     >
       {/* ID / Type */}
-      <td className="pl-4 pr-2 py-3">
+      <td className="pl-5 pr-2 py-3.5">
         <div className="flex flex-col gap-0.5">
-          <span className="text-[11px] font-mono text-foreground-muted/80 tracking-tight">{ticket.key}</span>
-          <span className="text-[10px] text-foreground-muted/50">
+          <span className="text-[11px] font-mono text-foreground-secondary tracking-tight">{ticket.key}</span>
+          <span className="text-[10px] text-foreground-muted">
             {TYPE_LABELS[ticket.type] || ticket.type}
           </span>
         </div>
       </td>
 
       {/* Description / Title */}
-      <td className="px-2 py-3 max-w-[300px]">
+      <td className="px-2 py-3.5 max-w-[300px]">
         <p className={`text-[13px] font-medium leading-snug line-clamp-1 ${isSelected ? 'text-accent' : 'text-foreground'}`}>
           {ticket.title}
         </p>
         {ticket.description && (
-          <p className="text-[11px] text-foreground-muted/45 mt-0.5 line-clamp-1">
+          <p className="text-[11px] text-foreground-muted mt-0.5 line-clamp-1">
             {ticket.description}
           </p>
         )}
       </td>
 
       {/* Demandeur */}
-      <td className="px-2 py-3 hidden lg:table-cell">
+      <td className="px-2 py-3.5 hidden lg:table-cell">
         <div className="flex items-center gap-2">
-          <span className="w-6 h-6 rounded-full bg-accent/10 dark:bg-accent/15 flex items-center justify-center text-[9px] font-bold text-accent flex-shrink-0">
+          <span className="w-6 h-6 rounded-lg bg-accent/10 flex items-center justify-center text-[9px] font-bold text-accent flex-shrink-0">
             {ticket.requesterFirstName[0]}{ticket.requesterLastName[0]}
           </span>
           <div className="min-w-0">
-            <p className="text-[12px] font-medium text-foreground truncate">
+            <p className="text-[12px] font-medium text-foreground-secondary truncate">
               {ticket.requesterFirstName} {ticket.requesterLastName}
             </p>
-            <p className="text-[10px] text-foreground-muted/50 truncate">
+            <p className="text-[10px] text-foreground-muted truncate">
               {ticket.requesterEmail}
             </p>
           </div>
@@ -553,27 +531,27 @@ function TicketTableRow({
       </td>
 
       {/* Statut */}
-      <td className="px-2 py-3">
+      <td className="px-2 py-3.5">
         <TicketStatusBadge status={ticket.status} size="sm" />
       </td>
 
       {/* Priorité */}
-      <td className="px-2 py-3 hidden sm:table-cell">
+      <td className="px-2 py-3.5 hidden sm:table-cell">
         <TicketPriorityBadge priority={ticket.priority} size="sm" />
       </td>
 
       {/* SLA */}
-      <td className="px-2 py-3 hidden xl:table-cell">
+      <td className="px-2 py-3.5 hidden xl:table-cell">
         <SlaIndicator ticket={ticket} />
       </td>
 
       {/* Date */}
-      <td className="px-2 py-3 hidden md:table-cell">
+      <td className="px-2 py-3.5 hidden md:table-cell">
         <div className="flex flex-col">
-          <span className="text-[11px] text-foreground-muted tabular-nums">
+          <span className="text-[11px] text-foreground-secondary tabular-nums">
             {formatDateTime(ticket.createdAt)}
           </span>
-          <span className="text-[10px] text-foreground-muted/40">
+          <span className="text-[10px] text-foreground-muted">
             {relativeDate(ticket.createdAt)}
           </span>
         </div>
@@ -581,13 +559,10 @@ function TicketTableRow({
 
       {/* Assigné */}
       {showAssignee && (
-        <td className="px-2 py-3 pr-4 hidden lg:table-cell">
+        <td className="px-2 py-3.5 pr-5 hidden lg:table-cell">
           {assigneeInitials ? (
             <div className="flex items-center gap-2">
-              <span className={`
-                w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0
-                ${isSelected ? 'bg-accent/20 text-accent' : 'bg-accent/10 text-accent/80'}
-              `}>
+              <span className="w-6 h-6 rounded-lg bg-accent/10 flex items-center justify-center text-[9px] font-bold text-accent/80 flex-shrink-0">
                 {assigneeInitials}
               </span>
               <span className="text-[12px] text-foreground-secondary truncate">
@@ -595,7 +570,7 @@ function TicketTableRow({
               </span>
             </div>
           ) : (
-            <span className="text-[11px] text-foreground-muted/40 italic">
+            <span className="text-[11px] text-foreground-muted italic">
               Non assigné
             </span>
           )}

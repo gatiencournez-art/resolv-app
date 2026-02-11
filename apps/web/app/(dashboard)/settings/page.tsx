@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { useTheme, PRESET_THEMES } from '@/contexts/theme-context';
+import { useTheme, PRESET_THEMES, type ColorTheme } from '@/contexts/theme-context';
 import { useLanguage, type Language } from '@/contexts/language-context';
 import { api } from '@/lib/api';
-import { getAccessToken } from '@/lib/auth';
+import { getValidAccessToken } from '@/lib/auth';
 import { Select } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 
@@ -13,7 +13,44 @@ import type { SelectOption } from '@/components/ui';
 // TYPES
 // ============================================================================
 
-type SettingsTab = 'profile' | 'theme' | 'preferences' | 'security';
+type SettingsTab = 'profile' | 'theme' | 'preferences' | 'security' | 'system';
+
+interface SlaPolicy {
+  id: string;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  responseTime: number;
+  resolutionTime: number;
+}
+
+const PRIORITY_LABELS: Record<string, string> = {
+  CRITICAL: 'Critique',
+  HIGH: 'Haute',
+  MEDIUM: 'Normale',
+  LOW: 'Basse',
+};
+
+const PRIORITY_COLORS: Record<string, string> = {
+  CRITICAL: '#ef4444',
+  HIGH: '#f97316',
+  MEDIUM: '#eab308',
+  LOW: '#22c55e',
+};
+
+const DEFAULT_SLA: Record<string, { responseTime: number; resolutionTime: number }> = {
+  CRITICAL: { responseTime: 30, resolutionTime: 240 },
+  HIGH: { responseTime: 120, resolutionTime: 1440 },
+  MEDIUM: { responseTime: 480, resolutionTime: 4320 },
+  LOW: { responseTime: 1440, resolutionTime: 10080 },
+};
+
+const TICKET_TYPES = [
+  { id: 'SOFTWARE', label: 'Logiciel', color: '#6366f1' },
+  { id: 'HARDWARE', label: 'Matériel', color: '#f97316' },
+  { id: 'ACCESS', label: 'Accès', color: '#10b981' },
+  { id: 'ONBOARDING', label: 'Intégration', color: '#3b82f6' },
+  { id: 'OFFBOARDING', label: 'Départ', color: '#ef4444' },
+  { id: 'OTHER', label: 'Autre', color: '#8b8b96' },
+];
 
 // ============================================================================
 // ICONS
@@ -51,9 +88,18 @@ function ShieldIcon() {
   );
 }
 
+function GearIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.573-1.066z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  );
+}
+
 function SunIcon() {
   return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
     </svg>
   );
@@ -61,7 +107,7 @@ function SunIcon() {
 
 function MoonIcon() {
   return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
     </svg>
   );
@@ -75,9 +121,9 @@ function BellIcon() {
   );
 }
 
-function CheckIcon() {
+function CheckIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
     </svg>
   );
@@ -98,10 +144,9 @@ function GlassCard({
     <div
       className={`
         relative overflow-hidden rounded-2xl
-        bg-white/[0.03] dark:bg-white/[0.03] bg-[var(--surface)]/80
-        backdrop-blur-xl
-        border border-white/[0.08] dark:border-white/[0.08] border-[var(--border)]
-        shadow-[0_8px_32px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)]
+        bg-surface-secondary/80 backdrop-blur-xl
+        border border-th-border
+        shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)]
         ${className}
       `}
     >
@@ -166,42 +211,13 @@ function Field({
         placeholder={placeholder}
         className={`
           w-full h-10 px-4 text-sm rounded-xl border transition-colors
-          bg-white/[0.04] dark:bg-white/[0.04]
-          border-white/[0.08] dark:border-white/[0.08] border-[var(--border)]
+          bg-surface-secondary
+          border-th-border
           text-foreground placeholder:text-foreground-muted
           focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent
           ${disabled || !onChange ? 'opacity-60 cursor-not-allowed' : ''}
         `}
       />
-    </div>
-  );
-}
-
-// ============================================================================
-// COLOR PICKER
-// ============================================================================
-
-function ColorPicker({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (val: string) => void;
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm text-foreground-secondary">{label}</span>
-      <div className="flex items-center gap-2">
-        <input
-          type="color"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-8 h-8 rounded-lg border-0 cursor-pointer bg-transparent"
-        />
-        <span className="text-xs font-mono text-foreground-muted uppercase">{value}</span>
-      </div>
     </div>
   );
 }
@@ -219,11 +235,12 @@ const languageOptions: SelectOption[] = [
 // TABS CONFIG
 // ============================================================================
 
-const TABS: { key: SettingsTab; label: string; icon: React.ReactNode }[] = [
+const TABS: { key: SettingsTab; label: string; icon: React.ReactNode; adminOnly?: boolean }[] = [
   { key: 'profile', label: 'Profil', icon: <UserIcon /> },
   { key: 'theme', label: 'Thème', icon: <SwatchIcon /> },
   { key: 'preferences', label: 'Préférences', icon: <PaletteIcon /> },
   { key: 'security', label: 'Sécurité', icon: <ShieldIcon /> },
+  { key: 'system', label: 'Système', icon: <GearIcon />, adminOnly: true },
 ];
 
 // ============================================================================
@@ -243,7 +260,7 @@ function OrgAdvancedInfo({ organizationId }: { organizationId: string }) {
   };
 
   return (
-    <div className="mt-5 pt-5 border-t border-white/[0.06] dark:border-white/[0.06] border-[var(--border)]">
+    <div className="mt-5 pt-5 border-t border-th-border">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 text-xs font-medium text-foreground-muted hover:text-foreground-secondary transition-colors"
@@ -260,7 +277,7 @@ function OrgAdvancedInfo({ organizationId }: { organizationId: string }) {
       </button>
 
       {isOpen && (
-        <div className="mt-3 p-4 rounded-xl bg-white/[0.02] dark:bg-white/[0.02] border border-white/[0.05] dark:border-white/[0.05] border-[var(--border)]/50">
+        <div className="mt-3 p-4 rounded-xl bg-surface-tertiary border border-th-border/50">
           <div className="flex items-center justify-between gap-3">
             <div className="flex-1 min-w-0">
               <p className="text-[10px] font-medium text-foreground-muted uppercase tracking-wider mb-1">
@@ -272,12 +289,12 @@ function OrgAdvancedInfo({ organizationId }: { organizationId: string }) {
             </div>
             <button
               onClick={handleCopy}
-              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-lg bg-white/[0.06] dark:bg-white/[0.06] hover:bg-white/[0.1] dark:hover:bg-white/[0.1] border border-white/[0.08] dark:border-white/[0.08] border-[var(--border)] text-foreground-muted hover:text-foreground transition-colors"
+              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-lg bg-surface-hover hover:bg-surface-inset border border-th-border text-foreground-muted hover:text-foreground transition-colors"
             >
               {copied ? (
                 <>
                   <CheckIcon />
-                  <span className="text-emerald-400">Copié</span>
+                  <span className="text-emerald-500 dark:text-emerald-400">Copié</span>
                 </>
               ) : (
                 <>
@@ -299,35 +316,18 @@ function OrgAdvancedInfo({ organizationId }: { organizationId: string }) {
 }
 
 // ============================================================================
-// ACCENT COLORS
+// THEME MODE CARD
 // ============================================================================
 
-const ACCENT_COLORS = [
-  { id: 'indigo', name: 'Indigo', color: '#6366f1', hover: '#4f46e5' },
-  { id: 'blue', name: 'Bleu', color: '#3b82f6', hover: '#2563eb' },
-  { id: 'violet', name: 'Violet', color: '#8b5cf6', hover: '#7c3aed' },
-  { id: 'teal', name: 'Teal', color: '#14b8a6', hover: '#0d9488' },
-  { id: 'emerald', name: 'Emeraude', color: '#10b981', hover: '#059669' },
-  { id: 'rose', name: 'Rose', color: '#f43f5e', hover: '#e11d48' },
-  { id: 'amber', name: 'Ambre', color: '#f59e0b', hover: '#d97706' },
-  { id: 'slate', name: 'Ardoise', color: '#64748b', hover: '#475569' },
-];
-
-// ============================================================================
-// APPEARANCE MODE CARD
-// ============================================================================
-
-function AppearanceModeCard({
+function ThemeModeCard({
   mode,
   label,
-  description,
   isActive,
   onClick,
   icon,
 }: {
-  mode: 'light' | 'dark' | 'system';
+  mode: 'light' | 'dark';
   label: string;
-  description: string;
   isActive: boolean;
   onClick: () => void;
   icon: React.ReactNode;
@@ -336,27 +336,48 @@ function AppearanceModeCard({
     <button
       onClick={onClick}
       className={`
-        relative flex flex-col items-center p-5 rounded-2xl border-2 transition-all duration-200 group
+        relative flex-1 flex flex-col items-center gap-3 p-6 rounded-2xl border-2 transition-all duration-200 group
         ${isActive
-          ? 'border-accent bg-accent/[0.08]'
-          : 'border-white/[0.06] dark:border-white/[0.06] hover:border-white/[0.12] dark:hover:border-white/[0.12] bg-white/[0.02] dark:bg-white/[0.02]'
+          ? 'border-accent bg-accent/[0.06] shadow-[0_0_24px_rgba(99,102,241,0.08)]'
+          : 'border-th-border hover:border-th-border-secondary bg-surface-secondary hover:bg-surface-hover'
         }
       `}
     >
-      {/* Mode Preview */}
+      {/* Preview mockup */}
       <div className={`
-        w-16 h-12 rounded-xl mb-3 flex items-center justify-center transition-transform duration-200 group-hover:scale-105
-        ${mode === 'dark' ? 'bg-[#0d0d14] border border-white/[0.1]' : ''}
-        ${mode === 'light' ? 'bg-white border border-gray-200' : ''}
-        ${mode === 'system' ? 'bg-gradient-to-r from-[#0d0d14] to-white border border-white/[0.1]' : ''}
+        w-full h-20 rounded-xl overflow-hidden flex transition-transform duration-200 group-hover:scale-[1.02]
+        ${mode === 'dark'
+          ? 'bg-[#0d0d14] border border-white/[0.08]'
+          : 'bg-white border border-gray-200/80'
+        }
       `}>
-        <span className={mode === 'light' ? 'text-gray-600' : 'text-white/70'}>{icon}</span>
+        {/* Sidebar preview */}
+        <div className={`w-8 h-full ${mode === 'dark' ? 'bg-[#0a0a10]' : 'bg-gray-50'} flex flex-col items-center py-2 gap-1.5`}>
+          <div className="w-3 h-3 rounded" style={{ backgroundColor: 'var(--accent)', opacity: 0.6 }} />
+          <div className={`w-3 h-1 rounded-full ${mode === 'dark' ? 'bg-white/10' : 'bg-gray-200'}`} />
+          <div className={`w-3 h-1 rounded-full ${mode === 'dark' ? 'bg-white/10' : 'bg-gray-200'}`} />
+        </div>
+        {/* Content preview */}
+        <div className="flex-1 p-2 flex flex-col gap-1">
+          <div className={`w-12 h-1.5 rounded-full ${mode === 'dark' ? 'bg-white/15' : 'bg-gray-200'}`} />
+          <div className={`w-full h-1 rounded-full ${mode === 'dark' ? 'bg-white/8' : 'bg-gray-100'}`} />
+          <div className={`w-3/4 h-1 rounded-full ${mode === 'dark' ? 'bg-white/8' : 'bg-gray-100'}`} />
+          <div className="flex-1" />
+          <div className="flex gap-1">
+            <div className="w-6 h-3 rounded" style={{ backgroundColor: 'var(--accent)', opacity: 0.5 }} />
+            <div className={`w-6 h-3 rounded ${mode === 'dark' ? 'bg-white/8' : 'bg-gray-100'}`} />
+          </div>
+        </div>
       </div>
-      <span className="text-sm font-semibold text-foreground mb-0.5">{label}</span>
-      <span className="text-[10px] text-foreground-muted">{description}</span>
+
+      <div className="flex items-center gap-2.5">
+        <span className={isActive ? 'text-accent' : 'text-foreground-muted'}>{icon}</span>
+        <span className="text-sm font-semibold text-foreground">{label}</span>
+      </div>
+
       {isActive && (
-        <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-accent flex items-center justify-center">
-          <CheckIcon />
+        <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-accent flex items-center justify-center shadow-lg shadow-accent/30">
+          <CheckIcon className="w-3.5 h-3.5 text-white" />
         </div>
       )}
     </button>
@@ -364,70 +385,464 @@ function AppearanceModeCard({
 }
 
 // ============================================================================
-// ACCENT COLOR DOT
+// COLOR PALETTE CARD
 // ============================================================================
 
-function AccentColorDot({
-  color,
-  name,
+function PaletteCard({
+  theme,
   isActive,
   onClick,
 }: {
-  color: string;
-  name: string;
+  theme: ColorTheme;
   isActive: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       onClick={onClick}
-      title={name}
       className={`
-        relative w-10 h-10 rounded-full transition-all duration-200 group
-        ${isActive ? 'scale-110' : 'hover:scale-110'}
+        relative flex flex-col p-4 rounded-xl border-2 transition-all duration-200 group text-left
+        ${isActive
+          ? 'border-accent bg-accent/[0.05] shadow-[0_0_20px_rgba(99,102,241,0.06)]'
+          : 'border-th-border hover:border-th-border-secondary bg-surface-secondary hover:bg-surface-hover'
+        }
       `}
-      style={{
-        backgroundColor: color,
-        boxShadow: isActive ? `0 0 0 3px var(--surface), 0 0 0 5px ${color}, 0 0 20px ${color}40` : 'none',
-      }}
     >
+      {/* Color dots */}
+      <div className="flex items-center gap-2 mb-3">
+        <div
+          className="w-7 h-7 rounded-full shadow-sm ring-2 ring-white/10"
+          style={{ backgroundColor: theme.accent }}
+        />
+        <div
+          className="w-5 h-5 rounded-full shadow-sm ring-2 ring-white/10"
+          style={{ backgroundColor: theme.secondary }}
+        />
+      </div>
+
+      {/* Name */}
+      <span className="text-xs font-semibold text-foreground">{theme.name}</span>
+
+      {/* Active indicator */}
       {isActive && (
-        <span className="absolute inset-0 flex items-center justify-center text-white">
-          <CheckIcon />
-        </span>
+        <div className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-accent flex items-center justify-center">
+          <CheckIcon className="w-3 h-3 text-white" />
+        </div>
       )}
-      <span className="sr-only">{name}</span>
     </button>
   );
 }
 
 // ============================================================================
-// SETTING ROW
+// SLA MANAGEMENT
 // ============================================================================
 
-function SettingRow({
-  icon,
-  title,
-  description,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between py-4 border-b border-white/[0.04] dark:border-white/[0.04] last:border-0">
-      <div className="flex items-center gap-3">
-        <span className="w-9 h-9 rounded-xl bg-white/[0.04] dark:bg-white/[0.04] flex items-center justify-center text-foreground-muted">
-          {icon}
-        </span>
-        <div>
-          <p className="text-sm font-medium text-foreground">{title}</p>
-          <p className="text-[11px] text-foreground-muted mt-0.5">{description}</p>
-        </div>
+function SlaManagement() {
+  const [policies, setPolicies] = useState<SlaPolicy[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState({ responseTime: 0, resolutionTime: 0 });
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
+
+  const fetchPolicies = useCallback(async () => {
+    const token = await getValidAccessToken();
+    if (!token) return;
+    try {
+      const data = await api.getSlaPolicies(token) as SlaPolicy[];
+      setPolicies(data);
+    } catch { /* ignore */ }
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchPolicies();
+  }, [fetchPolicies]);
+
+  const handleEdit = (policy: SlaPolicy) => {
+    setEditingId(policy.id);
+    setEditValues({
+      responseTime: policy.responseTime,
+      resolutionTime: policy.resolutionTime,
+    });
+  };
+
+  const handleSave = async (policy: SlaPolicy) => {
+    const token = await getValidAccessToken();
+    if (!token) return;
+    setIsSaving(true);
+    try {
+      await api.updateSlaPolicy(policy.id, editValues, token);
+      await fetchPolicies();
+      setEditingId(null);
+      setSavedId(policy.id);
+      setTimeout(() => setSavedId(null), 2000);
+    } catch { /* ignore */ }
+    setIsSaving(false);
+  };
+
+  const handleCreate = async (priority: string) => {
+    const token = await getValidAccessToken();
+    if (!token) return;
+    const defaults = DEFAULT_SLA[priority];
+    try {
+      await api.createSlaPolicy({ priority, ...defaults }, token);
+      await fetchPolicies();
+    } catch { /* ignore */ }
+  };
+
+  const formatTime = (minutes: number): string => {
+    if (minutes < 60) return `${minutes}min`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours < 24) return mins > 0 ? `${hours}h${mins}` : `${hours}h`;
+    const days = Math.floor(hours / 24);
+    const remHours = hours % 24;
+    return remHours > 0 ? `${days}j ${remHours}h` : `${days}j`;
+  };
+
+  const priorities = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="w-5 h-5 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
       </div>
-      {children}
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {priorities.map((priority) => {
+        const policy = policies.find(p => p.priority === priority);
+        const isEditing = editingId === policy?.id;
+        const isSaved = savedId === policy?.id;
+
+        return (
+          <div
+            key={priority}
+            className="flex items-center gap-4 p-4 rounded-xl bg-surface-tertiary border border-th-border/50 transition-colors"
+          >
+            {/* Priority badge */}
+            <div className="flex items-center gap-2.5 w-28 flex-shrink-0">
+              <div
+                className="w-2.5 h-2.5 rounded-full"
+                style={{ backgroundColor: PRIORITY_COLORS[priority] }}
+              />
+              <span className="text-sm font-medium text-foreground">
+                {PRIORITY_LABELS[priority]}
+              </span>
+            </div>
+
+            {policy ? (
+              isEditing ? (
+                <>
+                  {/* Editing mode */}
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] text-foreground-muted">Réponse</span>
+                      <input
+                        type="number"
+                        value={editValues.responseTime}
+                        onChange={(e) => setEditValues(v => ({ ...v, responseTime: parseInt(e.target.value) || 0 }))}
+                        className="w-20 h-8 px-2 text-xs text-center rounded-lg bg-surface-secondary border border-th-border text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+                      />
+                      <span className="text-[11px] text-foreground-muted">min</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] text-foreground-muted">Résolution</span>
+                      <input
+                        type="number"
+                        value={editValues.resolutionTime}
+                        onChange={(e) => setEditValues(v => ({ ...v, resolutionTime: parseInt(e.target.value) || 0 }))}
+                        className="w-20 h-8 px-2 text-xs text-center rounded-lg bg-surface-secondary border border-th-border text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+                      />
+                      <span className="text-[11px] text-foreground-muted">min</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleSave(policy)}
+                      disabled={isSaving}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg bg-accent hover:bg-accent-hover text-white transition-colors disabled:opacity-50"
+                    >
+                      {isSaving ? '...' : 'OK'}
+                    </button>
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg bg-surface-hover border border-th-border text-foreground-muted hover:text-foreground transition-colors"
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Display mode */}
+                  <div className="flex items-center gap-6 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-xs text-foreground-secondary">
+                        Réponse : <span className="font-medium text-foreground">{formatTime(policy.responseTime)}</span>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-xs text-foreground-secondary">
+                        Résolution : <span className="font-medium text-foreground">{formatTime(policy.resolutionTime)}</span>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {isSaved && (
+                      <span className="text-xs text-emerald-500 dark:text-emerald-400 font-medium flex items-center gap-1">
+                        <CheckIcon className="w-3 h-3" /> Sauvé
+                      </span>
+                    )}
+                    <button
+                      onClick={() => handleEdit(policy)}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg bg-surface-hover hover:bg-surface-inset border border-th-border text-foreground-muted hover:text-foreground transition-colors"
+                    >
+                      Modifier
+                    </button>
+                  </div>
+                </>
+              )
+            ) : (
+              <>
+                <span className="text-xs text-foreground-muted flex-1">Non configuré</span>
+                <button
+                  onClick={() => handleCreate(priority)}
+                  className="px-3 py-1.5 text-xs font-medium rounded-lg bg-accent/10 hover:bg-accent/20 text-accent transition-colors"
+                >
+                  Configurer
+                </button>
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ============================================================================
+// TICKET CATEGORIES MANAGEMENT (Admin)
+// ============================================================================
+
+interface TicketCategory {
+  id: string;
+  name: string;
+  color: string;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+const PRESET_COLORS = [
+  '#6366f1', '#3b82f6', '#10b981', '#f97316', '#ef4444',
+  '#8b5cf6', '#ec4899', '#14b8a6', '#f59e0b', '#64748b',
+];
+
+function TicketCategoriesManagement() {
+  const [categories, setCategories] = useState<TicketCategory[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState({ name: '', color: '' });
+  const [isSaving, setIsSaving] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newColor, setNewColor] = useState('#6366f1');
+
+  const fetchCategories = useCallback(async () => {
+    const token = await getValidAccessToken();
+    if (!token) return;
+    try {
+      const data = await api.getTicketCategories(token) as TicketCategory[];
+      setCategories(data);
+    } catch { /* ignore */ }
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  const handleEdit = (cat: TicketCategory) => {
+    setEditingId(cat.id);
+    setEditValues({ name: cat.name, color: cat.color });
+  };
+
+  const handleSave = async (cat: TicketCategory) => {
+    const token = await getValidAccessToken();
+    if (!token || !editValues.name.trim()) return;
+    setIsSaving(true);
+    try {
+      await api.updateTicketCategory(cat.id, { name: editValues.name.trim(), color: editValues.color }, token);
+      await fetchCategories();
+      setEditingId(null);
+    } catch { /* ignore */ }
+    setIsSaving(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    const token = await getValidAccessToken();
+    if (!token) return;
+    try {
+      await api.deleteTicketCategory(id, token);
+      await fetchCategories();
+    } catch { /* ignore */ }
+  };
+
+  const handleAdd = async () => {
+    const token = await getValidAccessToken();
+    if (!token || !newName.trim()) return;
+    setIsSaving(true);
+    try {
+      await api.createTicketCategory({ name: newName.trim(), color: newColor }, token);
+      await fetchCategories();
+      setNewName('');
+      setNewColor('#6366f1');
+      setIsAdding(false);
+    } catch { /* ignore */ }
+    setIsSaving(false);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="w-5 h-5 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {categories.map((cat) => {
+        const isEditing = editingId === cat.id;
+
+        return (
+          <div
+            key={cat.id}
+            className="flex items-center gap-4 p-4 rounded-xl bg-surface-tertiary border border-th-border/50 transition-colors"
+          >
+            {isEditing ? (
+              <>
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="flex items-center gap-2">
+                    {PRESET_COLORS.map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => setEditValues(v => ({ ...v, color: c }))}
+                        className={`w-5 h-5 rounded-full transition-all ${editValues.color === c ? 'ring-2 ring-accent ring-offset-1 ring-offset-[var(--surface-tertiary)] scale-110' : 'opacity-60 hover:opacity-100'}`}
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    value={editValues.name}
+                    onChange={(e) => setEditValues(v => ({ ...v, name: e.target.value }))}
+                    className="flex-1 h-8 px-3 text-sm rounded-lg bg-surface-secondary border border-th-border text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+                    maxLength={50}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleSave(cat)}
+                    disabled={isSaving}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-accent hover:bg-accent-hover text-white transition-colors disabled:opacity-50"
+                  >
+                    {isSaving ? '...' : 'OK'}
+                  </button>
+                  <button
+                    onClick={() => setEditingId(null)}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-surface-hover border border-th-border text-foreground-muted hover:text-foreground transition-colors"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2.5 flex-1">
+                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                  <span className="text-sm font-medium text-foreground">{cat.name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleEdit(cat)}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-surface-hover hover:bg-surface-inset border border-th-border text-foreground-muted hover:text-foreground transition-colors"
+                  >
+                    Modifier
+                  </button>
+                  <button
+                    onClick={() => handleDelete(cat.id)}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 transition-colors"
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Add new category */}
+      {isAdding ? (
+        <div className="flex items-center gap-4 p-4 rounded-xl bg-surface-tertiary border border-accent/30 transition-colors">
+          <div className="flex items-center gap-3 flex-1">
+            <div className="flex items-center gap-2">
+              {PRESET_COLORS.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setNewColor(c)}
+                  className={`w-5 h-5 rounded-full transition-all ${newColor === c ? 'ring-2 ring-accent ring-offset-1 ring-offset-[var(--surface-tertiary)] scale-110' : 'opacity-60 hover:opacity-100'}`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Nom de la catégorie..."
+              className="flex-1 h-8 px-3 text-sm rounded-lg bg-surface-secondary border border-th-border text-foreground placeholder:text-foreground-muted focus:outline-none focus:ring-1 focus:ring-accent"
+              maxLength={50}
+              autoFocus
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleAdd}
+              disabled={isSaving || !newName.trim()}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-accent hover:bg-accent-hover text-white transition-colors disabled:opacity-50"
+            >
+              {isSaving ? '...' : 'Ajouter'}
+            </button>
+            <button
+              onClick={() => { setIsAdding(false); setNewName(''); }}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-surface-hover border border-th-border text-foreground-muted hover:text-foreground transition-colors"
+            >
+              Annuler
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setIsAdding(true)}
+          className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-th-border/60 hover:border-accent/40 hover:bg-accent/5 text-xs font-medium text-foreground-muted hover:text-accent transition-all"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Ajouter une catégorie
+        </button>
+      )}
     </div>
   );
 }
@@ -441,9 +856,8 @@ export default function SettingsPage() {
   const {
     themeMode,
     setThemeMode,
-    resolvedTheme,
     colorTheme,
-    setAccentColor,
+    setColorTheme,
     density,
     setDensity,
     animationsEnabled,
@@ -473,7 +887,7 @@ export default function SettingsPage() {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   const handleSaveProfile = async () => {
-    const token = getAccessToken();
+    const token = await getValidAccessToken();
     if (!token) return;
 
     setProfileError('');
@@ -521,7 +935,7 @@ export default function SettingsPage() {
       return;
     }
 
-    const token = getAccessToken();
+    const token = await getValidAccessToken();
     if (!token) return;
 
     setIsSavingPassword(true);
@@ -541,17 +955,11 @@ export default function SettingsPage() {
     }
   };
 
-  // Find matching accent color
-  const currentAccentId = ACCENT_COLORS.find((c) => c.color === colorTheme.accent)?.id || 'indigo';
+  // Filter tabs: system only for admins
+  const visibleTabs = TABS.filter(tab => !tab.adminOnly || isAdminView);
 
   return (
     <div className="relative">
-      {/* Ambient glows */}
-      <div className="fixed top-0 left-60 right-0 bottom-0 pointer-events-none overflow-hidden -z-10">
-        <div className="absolute top-[-15%] right-[20%] w-[400px] h-[400px] bg-violet-500/[0.05] dark:bg-violet-500/[0.05] rounded-full blur-[100px]" />
-        <div className="absolute bottom-[5%] left-[10%] w-[350px] h-[350px] bg-indigo-500/[0.04] dark:bg-indigo-500/[0.04] rounded-full blur-[80px]" />
-      </div>
-
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">Paramètres</h1>
@@ -562,20 +970,20 @@ export default function SettingsPage() {
         {/* Sidebar Tabs */}
         <div className="w-48 flex-shrink-0">
           <GlassCard className="p-2">
-            {TABS.map((t) => (
+            {visibleTabs.map((tab) => (
               <button
-                key={t.key}
-                onClick={() => setActiveTab(t.key)}
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
                 className={`
                   w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
-                  ${activeTab === t.key
+                  ${activeTab === tab.key
                     ? 'bg-accent/10 text-accent'
-                    : 'text-foreground-muted hover:text-foreground hover:bg-white/[0.04] dark:hover:bg-white/[0.04]'
+                    : 'text-foreground-muted hover:text-foreground hover:bg-surface-hover'
                   }
                 `}
               >
-                <span className={activeTab === t.key ? 'text-accent' : 'text-foreground-muted'}>{t.icon}</span>
-                {t.label}
+                <span className={activeTab === tab.key ? 'text-accent' : 'text-foreground-muted'}>{tab.icon}</span>
+                {tab.label}
               </button>
             ))}
           </GlassCard>
@@ -606,14 +1014,14 @@ export default function SettingsPage() {
                   {!isEditingProfile && (
                     <button
                       onClick={() => setIsEditingProfile(true)}
-                      className="px-4 py-2 text-xs font-medium rounded-xl bg-white/[0.06] dark:bg-white/[0.06] hover:bg-white/[0.1] dark:hover:bg-white/[0.1] border border-white/[0.08] dark:border-white/[0.08] border-[var(--border)] text-foreground transition-colors"
+                      className="px-4 py-2 text-xs font-medium rounded-xl bg-surface-hover hover:bg-surface-inset border border-th-border text-foreground transition-colors"
                     >
                       Modifier
                     </button>
                   )}
                 </div>
 
-                <div className="border-t border-white/[0.06] dark:border-white/[0.06] border-[var(--border)] pt-5">
+                <div className="border-t border-th-border pt-5">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {isEditingProfile ? (
                       <>
@@ -642,7 +1050,7 @@ export default function SettingsPage() {
                       <button
                         onClick={handleCancelProfile}
                         disabled={isSavingProfile}
-                        className="px-5 py-2 text-sm font-medium rounded-xl bg-white/[0.06] dark:bg-white/[0.06] hover:bg-white/[0.1] dark:hover:bg-white/[0.1] border border-white/[0.08] dark:border-white/[0.08] border-[var(--border)] text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-5 py-2 text-sm font-medium rounded-xl bg-surface-hover hover:bg-surface-inset border border-th-border text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Annuler
                       </button>
@@ -651,14 +1059,14 @@ export default function SettingsPage() {
 
                   {profileError && (
                     <div className="px-4 py-2.5 mt-4 rounded-xl bg-rose-500/10 border border-rose-500/20">
-                      <p className="text-sm text-rose-400 font-medium">{profileError}</p>
+                      <p className="text-sm text-rose-500 dark:text-rose-400 font-medium">{profileError}</p>
                     </div>
                   )}
 
                   {profileSaved && (
                     <div className="flex items-center gap-2 mt-4 px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                       <CheckIcon />
-                      <span className="text-sm text-emerald-400 font-medium">Profil mis à jour</span>
+                      <span className="text-sm text-emerald-500 dark:text-emerald-400 font-medium">Profil mis à jour</span>
                     </div>
                   )}
                 </div>
@@ -683,7 +1091,6 @@ export default function SettingsPage() {
                   <Field label="Statut du compte" value={user?.status === 'ACTIVE' ? 'Actif' : user?.status === 'PENDING' ? 'En attente' : user?.status === 'SUSPENDED' ? 'Suspendu' : user?.status || ''} disabled />
                 </div>
 
-                {/* Advanced info — Admin only */}
                 {isAdminView && (
                   <OrgAdvancedInfo organizationId={user?.organizationId || ''} />
                 )}
@@ -696,94 +1103,92 @@ export default function SettingsPage() {
           {/* ============================================================ */}
           {activeTab === 'theme' && (
             <>
-              {/* Appearance Mode */}
+              {/* Section A: Appearance */}
               <GlassCard className="p-6">
-                <h3 className="text-sm font-semibold text-foreground mb-1">Apparence</h3>
-                <p className="text-xs text-foreground-muted mb-5">Choisissez le mode d&apos;affichage de l&apos;interface</p>
+                <div className="mb-5">
+                  <h3 className="text-sm font-semibold text-foreground">Apparence</h3>
+                  <p className="text-xs text-foreground-muted mt-1">Choisissez le mode d&apos;affichage</p>
+                </div>
 
-                <div className="grid grid-cols-3 gap-4">
-                  <AppearanceModeCard
+                <div className="flex gap-4">
+                  <ThemeModeCard
                     mode="light"
                     label="Clair"
-                    description="Thème lumineux"
                     isActive={themeMode === 'light'}
                     onClick={() => setThemeMode('light')}
                     icon={<SunIcon />}
                   />
-                  <AppearanceModeCard
+                  <ThemeModeCard
                     mode="dark"
                     label="Sombre"
-                    description="Thème foncé"
                     isActive={themeMode === 'dark'}
                     onClick={() => setThemeMode('dark')}
                     icon={<MoonIcon />}
                   />
-                  <AppearanceModeCard
-                    mode="system"
-                    label="Système"
-                    description="Suit votre OS"
-                    isActive={themeMode === 'system'}
-                    onClick={() => setThemeMode('system')}
-                    icon={
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                      </svg>
-                    }
-                  />
                 </div>
-
-                {themeMode === 'system' && (
-                  <p className="text-[11px] text-foreground-muted mt-4 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-                    Mode actuel : {resolvedTheme === 'dark' ? 'Sombre' : 'Clair'}
-                  </p>
-                )}
               </GlassCard>
 
-              {/* Accent Color */}
+              {/* Section B: Color Palette */}
               <GlassCard className="p-6">
-                <h3 className="text-sm font-semibold text-foreground mb-1">Couleur d&apos;accent</h3>
-                <p className="text-xs text-foreground-muted mb-5">Personnalisez la couleur principale de l&apos;interface</p>
+                <div className="mb-5">
+                  <h3 className="text-sm font-semibold text-foreground">Palette de couleurs</h3>
+                  <p className="text-xs text-foreground-muted mt-1">Couleurs primaire et secondaire de l&apos;interface</p>
+                </div>
 
-                <div className="flex flex-wrap gap-3">
-                  {ACCENT_COLORS.map((accent) => (
-                    <AccentColorDot
-                      key={accent.id}
-                      color={accent.color}
-                      name={accent.name}
-                      isActive={currentAccentId === accent.id}
-                      onClick={() => setAccentColor(accent.color, accent.hover)}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {PRESET_THEMES.map((preset) => (
+                    <PaletteCard
+                      key={preset.id}
+                      theme={preset}
+                      isActive={colorTheme.id === preset.id}
+                      onClick={() => setColorTheme(preset)}
                     />
                   ))}
                 </div>
 
-                <p className="text-[11px] text-foreground-muted mt-4">
-                  Couleur sélectionnée : <span className="font-medium text-accent">{ACCENT_COLORS.find((c) => c.id === currentAccentId)?.name || 'Personnalisée'}</span>
-                </p>
+                {/* Active palette info */}
+                <div className="mt-4 flex items-center gap-3 px-4 py-3 rounded-xl bg-surface-tertiary border border-th-border/40">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colorTheme.accent }} />
+                    <span className="text-xs text-foreground-muted">Primaire</span>
+                  </div>
+                  <div className="w-px h-4 bg-th-border" />
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colorTheme.secondary }} />
+                    <span className="text-xs text-foreground-muted">Secondaire</span>
+                  </div>
+                  <div className="w-px h-4 bg-th-border" />
+                  <span className="text-xs font-medium text-foreground">{colorTheme.name}</span>
+                </div>
               </GlassCard>
 
-              {/* Interface Settings */}
+              {/* Section C: Interface */}
               <GlassCard className="p-6">
-                <h3 className="text-sm font-semibold text-foreground mb-1">Interface</h3>
-                <p className="text-xs text-foreground-muted mb-5">Ajustez le comportement de l&apos;interface</p>
+                <div className="mb-5">
+                  <h3 className="text-sm font-semibold text-foreground">Interface</h3>
+                  <p className="text-xs text-foreground-muted mt-1">Ajustez le comportement de l&apos;interface</p>
+                </div>
 
                 <div className="space-y-0">
                   {/* Density */}
-                  <SettingRow
-                    icon={
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
-                      </svg>
-                    }
-                    title="Densité d'affichage"
-                    description="Espace entre les éléments"
-                  >
-                    <div className="flex items-center gap-2 bg-white/[0.04] dark:bg-white/[0.04] rounded-xl p-1">
+                  <div className="flex items-center justify-between py-4 border-b border-th-border/40">
+                    <div className="flex items-center gap-3">
+                      <span className="w-9 h-9 rounded-xl bg-surface-tertiary flex items-center justify-center text-foreground-muted">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                      </span>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Densité d&apos;affichage</p>
+                        <p className="text-[11px] text-foreground-muted mt-0.5">Espace entre les éléments</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center bg-surface-tertiary rounded-xl p-1 border border-th-border/40">
                       <button
                         onClick={() => setDensity('comfortable')}
-                        className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                        className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-all ${
                           density === 'comfortable'
-                            ? 'bg-accent text-white'
+                            ? 'bg-accent text-white shadow-sm'
                             : 'text-foreground-muted hover:text-foreground'
                         }`}
                       >
@@ -791,38 +1196,39 @@ export default function SettingsPage() {
                       </button>
                       <button
                         onClick={() => setDensity('compact')}
-                        className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                        className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-all ${
                           density === 'compact'
-                            ? 'bg-accent text-white'
+                            ? 'bg-accent text-white shadow-sm'
                             : 'text-foreground-muted hover:text-foreground'
                         }`}
                       >
                         Compact
                       </button>
                     </div>
-                  </SettingRow>
+                  </div>
 
                   {/* Animations */}
-                  <SettingRow
-                    icon={
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    }
-                    title="Animations"
-                    description="Effets visuels et transitions"
-                  >
+                  <div className="flex items-center justify-between py-4">
+                    <div className="flex items-center gap-3">
+                      <span className="w-9 h-9 rounded-xl bg-surface-tertiary flex items-center justify-center text-foreground-muted">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </span>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Animations</p>
+                        <p className="text-[11px] text-foreground-muted mt-0.5">Effets visuels et transitions</p>
+                      </div>
+                    </div>
                     <Toggle enabled={animationsEnabled} onChange={setAnimationsEnabled} />
-                  </SettingRow>
+                  </div>
                 </div>
               </GlassCard>
 
               {/* Auto-save indicator */}
               <div className="flex items-center justify-center gap-2 text-[11px] text-foreground-muted">
-                <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+                <CheckIcon className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
                 Modifications enregistrées automatiquement
               </div>
             </>
@@ -838,7 +1244,7 @@ export default function SettingsPage() {
 
               <div className="space-y-0">
                 {/* Notifications */}
-                <div className="flex items-center justify-between py-4 border-b border-white/[0.06] dark:border-white/[0.06] border-[var(--border)]">
+                <div className="flex items-center justify-between py-4 border-b border-th-border/40">
                   <div className="flex items-center gap-3">
                     <span className="text-foreground-muted">
                       <BellIcon />
@@ -854,7 +1260,7 @@ export default function SettingsPage() {
                 {/* Language */}
                 <div className="flex items-center justify-between py-4">
                   <div className="flex items-center gap-3">
-                    <span className="w-9 h-9 rounded-xl bg-white/[0.04] dark:bg-white/[0.04] flex items-center justify-center text-foreground-muted text-xs font-semibold">
+                    <span className="w-9 h-9 rounded-xl bg-surface-tertiary flex items-center justify-center text-foreground-muted text-xs font-semibold">
                       {language === 'fr' ? '🇫🇷' : '🇬🇧'}
                     </span>
                     <div>
@@ -909,14 +1315,14 @@ export default function SettingsPage() {
 
                 {passwordError && (
                   <div className="px-4 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
-                    <p className="text-sm text-rose-400 font-medium">{passwordError}</p>
+                    <p className="text-sm text-rose-500 dark:text-rose-400 font-medium">{passwordError}</p>
                   </div>
                 )}
 
                 {passwordSaved && (
                   <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                     <CheckIcon />
-                    <span className="text-sm text-emerald-400 font-medium">Mot de passe mis à jour</span>
+                    <span className="text-sm text-emerald-500 dark:text-emerald-400 font-medium">Mot de passe mis à jour</span>
                   </div>
                 )}
 
@@ -931,11 +1337,85 @@ export default function SettingsPage() {
 
               {/* Info */}
               <div className="mt-6 px-4 py-3 rounded-xl bg-amber-500/[0.06] border border-amber-500/10">
-                <p className="text-xs text-amber-300 dark:text-amber-300 text-amber-600">
+                <p className="text-xs text-amber-700 dark:text-amber-300">
                   Votre compte est protégé par un mot de passe. Changez-le régulièrement pour plus de sécurité.
                 </p>
               </div>
             </GlassCard>
+          )}
+
+          {/* ============================================================ */}
+          {/* SYSTEM TAB (Admin only) */}
+          {/* ============================================================ */}
+          {activeTab === 'system' && isAdminView && (
+            <>
+              {/* Section header */}
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-accent/20 to-accent/5 flex items-center justify-center border border-accent/10">
+                  <GearIcon />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-foreground">Configuration système</h2>
+                  <p className="text-xs text-foreground-muted">Paramètres avancés de votre organisation</p>
+                </div>
+              </div>
+
+              {/* SLA Configuration */}
+              <GlassCard className="p-6">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                      <svg className="w-4.5 h-4.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground">SLA (Service Level Agreement)</h3>
+                      <p className="text-[11px] text-foreground-muted mt-0.5">Temps de réponse et résolution par priorité</p>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                    SLA
+                  </span>
+                </div>
+
+                <SlaManagement />
+
+                <div className="mt-4 px-4 py-2.5 rounded-xl bg-surface-tertiary/60 border border-th-border/30">
+                  <p className="text-[11px] text-foreground-muted">
+                    Les délais SLA s&apos;appliquent automatiquement aux nouveaux tickets selon leur priorité.
+                  </p>
+                </div>
+              </GlassCard>
+
+              {/* Ticket Categories */}
+              <GlassCard className="p-6">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-violet-500/10 flex items-center justify-center">
+                      <svg className="w-4.5 h-4.5 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground">Types de tickets</h3>
+                      <p className="text-[11px] text-foreground-muted mt-0.5">Gérez les catégories disponibles lors de la création de tickets</p>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-lg bg-violet-500/10 text-[10px] font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider">
+                    Types
+                  </span>
+                </div>
+
+                <TicketCategoriesManagement />
+
+                <div className="mt-4 px-4 py-2.5 rounded-xl bg-surface-tertiary/60 border border-th-border/30">
+                  <p className="text-[11px] text-foreground-muted">
+                    Les types ajoutés apparaîtront dans le formulaire de création de ticket pour tous les utilisateurs.
+                  </p>
+                </div>
+              </GlassCard>
+            </>
           )}
         </div>
       </div>

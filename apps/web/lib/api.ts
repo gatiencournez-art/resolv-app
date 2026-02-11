@@ -247,6 +247,82 @@ class ApiClient {
       token,
     });
   }
+
+  // SLA Policies (Admin)
+  async getSlaPolicies(token: string) {
+    return this.request('/sla-policies', { token });
+  }
+
+  async createSlaPolicy(data: { priority: string; responseTime: number; resolutionTime: number }, token: string) {
+    return this.request('/sla-policies', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      token,
+    });
+  }
+
+  async updateSlaPolicy(id: string, data: { responseTime?: number; resolutionTime?: number }, token: string) {
+    return this.request(`/sla-policies/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+      token,
+    });
+  }
+
+  // Ticket Categories (Admin)
+  async getTicketCategories(token: string) {
+    return this.request('/ticket-categories', { token });
+  }
+
+  async createTicketCategory(data: { name: string; color: string }, token: string) {
+    return this.request('/ticket-categories', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      token,
+    });
+  }
+
+  async updateTicketCategory(id: string, data: { name?: string; color?: string; isActive?: boolean; sortOrder?: number }, token: string) {
+    return this.request(`/ticket-categories/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+      token,
+    });
+  }
+
+  async deleteTicketCategory(id: string, token: string) {
+    const res = await this.request(`/ticket-categories/${id}`, {
+      method: 'DELETE',
+      token,
+    });
+    return res;
+  }
+
+  async uploadAttachment(ticketId: string, file: File, token: string) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${this.baseUrl}/tickets/${ticketId}/attachments`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const text = await response.text();
+    const data = text ? JSON.parse(text) : null;
+
+    if (!response.ok) {
+      const error: ApiError = {
+        message: (data && data.message) || "Erreur lors de l'upload",
+        statusCode: response.status,
+      };
+      throw error;
+    }
+
+    return data;
+  }
 }
 
 export const api = new ApiClient(API_URL);

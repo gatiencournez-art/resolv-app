@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useTicketWorkspace, type TicketView } from '@/contexts/ticket-workspace-context';
 
 // ============================================================================
-// ICONS (16px, strokeWidth 1.5 for consistency)
+// ICONS (16px, strokeWidth 1.5)
 // ============================================================================
 
 function InboxIcon() {
@@ -48,16 +48,16 @@ function ClockAlertIcon() {
   );
 }
 
-function PlusCircleIcon() {
+function PlusIcon() {
   return (
-    <svg className="w-[16px] h-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
     </svg>
   );
 }
 
 // ============================================================================
-// STATUS DOTS (colored indicators for status views)
+// STATUS DOTS
 // ============================================================================
 
 function StatusDot({ color }: { color: string }) {
@@ -74,14 +74,14 @@ interface ViewItem {
   icon: React.ReactNode;
   section: 'smart' | 'status';
   adminOnly?: boolean;
-  accentColor?: string; // for special highlight on badges
+  accentColor?: string;
 }
 
 const VIEW_ITEMS: ViewItem[] = [
   { key: 'my_tickets', label: 'Mes tickets', icon: <UserTicketsIcon />, section: 'smart' },
   { key: 'unassigned', label: 'Non assignés', icon: <UnassignedIcon />, section: 'smart', adminOnly: true },
-  { key: 'high_priority', label: 'Haute priorité', icon: <FireIcon />, section: 'smart', accentColor: 'text-[var(--priority-high)]' },
-  { key: 'overdue', label: 'En retard (SLA)', icon: <ClockAlertIcon />, section: 'smart', accentColor: 'text-[var(--priority-critical)]' },
+  { key: 'high_priority', label: 'Haute priorité', icon: <FireIcon />, section: 'smart', accentColor: 'text-amber-400' },
+  { key: 'overdue', label: 'En retard (SLA)', icon: <ClockAlertIcon />, section: 'smart', accentColor: 'text-rose-400' },
   { key: 'all', label: 'Tous les tickets', icon: <InboxIcon />, section: 'status' },
   { key: 'new', label: 'Nouveaux', icon: <StatusDot color="bg-[var(--status-new)]" />, section: 'status' },
   { key: 'in_progress', label: 'En cours', icon: <StatusDot color="bg-[var(--status-progress)]" />, section: 'status' },
@@ -109,17 +109,16 @@ function ViewButton({
     <button
       onClick={onClick}
       className={`
-        group flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-[13px] font-medium
-        transition-all duration-[150ms] relative
+        group flex items-center gap-2.5 w-full px-3 py-[9px] rounded-xl text-[13px] font-medium
+        transition-all duration-150 relative
         ${isActive
-          ? 'bg-accent/10 text-accent'
-          : 'text-foreground-secondary hover:bg-surface-hover dark:hover:bg-white/[0.05] hover:text-foreground'
+          ? 'bg-surface-hover text-foreground shadow-[inset_0_0_0_1px] shadow-th-border/50'
+          : 'text-foreground-secondary hover:bg-surface-hover hover:text-foreground'
         }
       `}
     >
-      {/* Active indicator bar */}
       {isActive && (
-        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-full bg-accent" />
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-accent" />
       )}
       <span
         className={`flex-shrink-0 flex items-center justify-center w-4 h-4 ${
@@ -135,12 +134,12 @@ function ViewButton({
       <span className="flex-1 text-left truncate">{view.label}</span>
       {count > 0 && (
         <span
-          className={`text-[11px] font-semibold tabular-nums px-1.5 py-0.5 rounded-full min-w-[22px] text-center transition-colors ${
+          className={`text-[10px] font-semibold tabular-nums px-1.5 py-px rounded-md min-w-[20px] text-center ${
             isActive
               ? 'bg-accent/20 text-accent'
               : showDangerBadge
-                ? 'bg-[var(--priority-critical)]/10 text-[var(--priority-critical)]'
-                : 'bg-surface-tertiary/80 text-foreground-muted'
+                ? 'bg-rose-500/15 text-rose-400'
+                : 'bg-surface-tertiary text-foreground-muted'
           }`}
         >
           {count}
@@ -164,26 +163,26 @@ export function TicketViewsSidebar({ className = '' }: { className?: string }) {
 
   return (
     <div
-      className={`w-56 flex-shrink-0 flex flex-col border-r border-th-border/60 dark:border-white/[0.06] bg-surface dark:bg-white/[0.01] overflow-y-auto ${className}`}
+      className={`w-[220px] flex-shrink-0 flex flex-col bg-surface border-r border-th-border overflow-y-auto ${className}`}
     >
       {/* New ticket CTA */}
-      <div className="px-3 pt-4 pb-1">
+      <div className="px-3 pt-5 pb-2">
         <Link
           href="/tickets/new"
-          className="flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-xl bg-gradient-to-r from-accent to-accent-hover text-white text-[13px] font-medium transition-all duration-[180ms] shadow-sm hover:shadow-glow active:scale-[0.97]"
+          className="flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-xl bg-accent hover:bg-accent-hover text-white text-[13px] font-semibold transition-all duration-200 shadow-[0_0_20px_rgba(99,102,241,0.15)] hover:shadow-[0_0_25px_rgba(99,102,241,0.25)] active:scale-[0.97]"
         >
-          <PlusCircleIcon />
+          <PlusIcon />
           Nouveau ticket
         </Link>
       </div>
 
       {/* Smart views */}
-      <div className="px-3 pt-5 pb-1.5">
-        <p className="px-3 text-[10px] font-bold text-foreground-muted/70 uppercase tracking-[0.12em]">
+      <div className="px-3 pt-5 pb-2">
+        <p className="px-3 text-[10px] font-bold text-foreground-muted uppercase tracking-[0.14em]">
           Vues intelligentes
         </p>
       </div>
-      <nav className="px-2 space-y-0.5">
+      <nav className="px-2 space-y-px">
         {smartViews.map((view) => (
           <ViewButton
             key={view.key}
@@ -195,16 +194,16 @@ export function TicketViewsSidebar({ className = '' }: { className?: string }) {
         ))}
       </nav>
 
-      {/* Spacer between sections */}
-      <div className="h-5" />
+      {/* Divider */}
+      <div className="mx-5 my-4 h-px bg-th-border" />
 
       {/* Status views */}
-      <div className="px-3 pb-1.5">
-        <p className="px-3 text-[10px] font-bold text-foreground-muted/70 uppercase tracking-[0.12em]">
+      <div className="px-3 pb-2">
+        <p className="px-3 text-[10px] font-bold text-foreground-muted uppercase tracking-[0.14em]">
           Par statut
         </p>
       </div>
-      <nav className="px-2 space-y-0.5 pb-4">
+      <nav className="px-2 space-y-px pb-6">
         {statusViews.map((view) => (
           <ViewButton
             key={view.key}

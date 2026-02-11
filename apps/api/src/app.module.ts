@@ -9,6 +9,7 @@ import { MessagesModule } from './messages/messages.module';
 import { UsersModule } from './users/users.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SlaPoliciesModule } from './sla-policies/sla-policies.module';
+import { TicketCategoriesModule } from './ticket-categories/ticket-categories.module';
 import { AssetsModule } from './assets/assets.module';
 
 @Module({
@@ -24,6 +25,7 @@ import { AssetsModule } from './assets/assets.module';
     UsersModule,
     NotificationsModule,
     SlaPoliciesModule,
+    TicketCategoriesModule,
     AssetsModule,
   ],
   controllers: [AppController],

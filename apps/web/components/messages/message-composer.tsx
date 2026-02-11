@@ -46,7 +46,7 @@ export function MessageComposer({ onSend, disabled }: MessageComposerProps) {
 
   return (
     <form onSubmit={handleSubmit} className="relative">
-      <div className="relative flex items-end gap-2 rounded-2xl border border-th-border/50 dark:border-white/[0.08] bg-surface-secondary/50 dark:bg-white/[0.02] focus-within:border-accent/40 focus-within:ring-2 focus-within:ring-accent/10 transition-all duration-200">
+      <div className="relative flex items-end gap-2 rounded-2xl border border-th-border bg-surface-secondary/50 focus-within:border-accent/40 focus-within:ring-2 focus-within:ring-accent/10 transition-all duration-200">
         <textarea
           ref={textareaRef}
           value={content}

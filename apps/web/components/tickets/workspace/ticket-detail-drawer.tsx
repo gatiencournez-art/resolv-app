@@ -40,7 +40,7 @@ export function TicketDetailDrawer({ className = '' }: { className?: string }) {
       />
 
       {/* Drawer panel */}
-      <div className="absolute right-0 top-0 bottom-0 w-full max-w-lg bg-surface rounded-l-2xl border-l border-th-border/60 dark:border-white/[0.06] shadow-elevated overflow-hidden animate-slide-in-right">
+      <div className="absolute right-0 top-0 bottom-0 w-full max-w-lg bg-surface rounded-l-2xl border-l border-th-border shadow-elevated overflow-hidden animate-slide-in-right">
         <TicketDetailContent onClose={handleClose} />
       </div>
     </div>

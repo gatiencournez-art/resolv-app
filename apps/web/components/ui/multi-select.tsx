@@ -91,13 +91,10 @@ export function MultiSelect({
         className={`
           w-full h-[34px] px-3 text-[13px] text-left flex items-center gap-1.5
           rounded-xl border transition-all duration-[180ms]
-          bg-surface dark:bg-white/[0.03]
-          border-th-border dark:border-white/[0.1]
-          text-foreground
-          hover:border-th-border-secondary dark:hover:border-white/[0.18]
-          focus:outline-none focus:ring-2 focus:ring-accent/30
-          ${isOpen ? 'ring-2 ring-accent/30 border-accent/40 dark:border-accent/40' : ''}
-          ${selectedOptions.length > 0 ? 'border-accent/30 dark:border-accent/30' : ''}
+          bg-surface           border-th-border          text-foreground
+          hover:border-th-border-secondary          focus:outline-none focus:ring-2 focus:ring-accent/30
+          ${isOpen ? 'ring-2 ring-accent/30 border-accent/40' : ''}
+          ${selectedOptions.length > 0 ? 'border-accent/30' : ''}
         `}
       >
         {selectedOptions.length === 0 ? (
@@ -118,7 +115,7 @@ export function MultiSelect({
               {selectedOptions.slice(0, 4).map((opt) => (
                 <span
                   key={opt.value}
-                  className={`w-2 h-2 rounded-full ${opt.dot || 'bg-accent'} ring-1 ring-surface dark:ring-[#0d0d14]`}
+                  className={`w-2 h-2 rounded-full ${opt.dot || 'bg-accent'} ring-1 ring-surface`}
                 />
               ))}
             </span>
@@ -138,7 +135,7 @@ export function MultiSelect({
                 e.stopPropagation();
                 clearAll();
               }}
-              className="p-0.5 rounded hover:bg-surface-hover dark:hover:bg-white/[0.08] transition-colors"
+              className="p-0.5 rounded hover:bg-surface-hover transition-colors"
             >
               <svg className="w-3 h-3 text-foreground-muted/60 hover:text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -160,17 +157,14 @@ export function MultiSelect({
           className="
             absolute z-50 mt-1.5 w-full min-w-[200px]
             rounded-2xl overflow-hidden
-            bg-surface dark:bg-[#1a1a2e]
-            backdrop-blur-xl
-            border border-th-border dark:border-white/[0.1]
-            shadow-dropdown dark:shadow-[0_12px_40px_rgba(0,0,0,0.5)]
-            animate-slide-up-sm
+            bg-surface            backdrop-blur-xl
+            border border-th-border            shadow-dropdown            animate-slide-up-sm
             max-h-64 overflow-y-auto
           "
         >
           {/* Header with clear */}
           {values.length > 0 && (
-            <div className="px-3.5 py-2.5 border-b border-th-border/60 dark:border-white/[0.06] flex items-center justify-between">
+            <div className="px-3.5 py-2.5 border-b border-th-border/60 flex items-center justify-between">
               <span className="text-[11px] text-foreground-muted font-medium">
                 {values.length} sélectionné{values.length > 1 ? 's' : ''}
               </span>
@@ -201,7 +195,7 @@ export function MultiSelect({
                     rounded-xl transition-all duration-[120ms]
                     ${isSelected
                       ? 'bg-accent/[0.08]'
-                      : 'hover:bg-surface-hover dark:hover:bg-white/[0.06]'
+                      : 'hover:bg-surface-hover'
                     }
                     text-foreground
                   `}
@@ -212,7 +206,7 @@ export function MultiSelect({
                       w-4 h-4 rounded-md flex-shrink-0 flex items-center justify-center border transition-all duration-[120ms]
                       ${isSelected
                         ? 'bg-accent border-accent shadow-sm'
-                        : 'border-foreground-muted/30 dark:border-white/[0.15] bg-transparent'
+                        : 'border-foreground-muted/30 bg-transparent'
                       }
                     `}
                   >
@@ -225,7 +219,7 @@ export function MultiSelect({
 
                   {option.dot && <span className={`w-2 h-2 rounded-full ${option.dot} flex-shrink-0`} />}
                   {option.avatar && (
-                    <span className="w-6 h-6 rounded-full bg-surface-tertiary dark:bg-white/[0.08] flex items-center justify-center text-[10px] font-bold text-foreground-secondary flex-shrink-0 border border-th-border/40 dark:border-white/[0.1]">
+                    <span className="w-6 h-6 rounded-full bg-surface-tertiary flex items-center justify-center text-[10px] font-bold text-foreground-secondary flex-shrink-0 border border-th-border/40 dark:border-white/[0.1]">
                       {option.avatar}
                     </span>
                   )}

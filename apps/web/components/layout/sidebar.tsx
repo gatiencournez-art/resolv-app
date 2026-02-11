@@ -92,7 +92,7 @@ function SettingsIcon() {
 // ============================================================================
 
 const adminSupportNav: NavItem[] = [
-  { name: 'Accueil', href: '/dashboard', icon: <HomeIcon /> },
+  { name: 'Accueil', href: '/accueil', icon: <HomeIcon /> },
   { name: 'Tous les tickets', href: '/tickets', icon: <TicketsIcon /> },
   { name: 'Kanban', href: '/kanban', icon: <KanbanIcon /> },
 ];
@@ -102,7 +102,7 @@ const adminAdministrationNav: NavItem[] = [
 ];
 
 const userNav: NavItem[] = [
-  { name: 'Accueil', href: '/dashboard', icon: <HomeIcon /> },
+  { name: 'Accueil', href: '/accueil', icon: <HomeIcon /> },
   { name: 'Mes tickets', href: '/tickets', icon: <TicketsIcon /> },
   { name: 'Nouveau ticket', href: '/tickets/new', icon: <PlusIcon /> },
 ];
@@ -127,7 +127,7 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
         className={`
           flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-150
           ${isActive
-            ? 'bg-accent text-white shadow-sm'
+            ? 'bg-accent text-white shadow-sm shadow-accent/25'
             : 'text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-active'
           }
         `}
@@ -142,7 +142,7 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
 function SectionLabel({ label }: { label: string }) {
   return (
     <div className="mt-7 mb-2 px-3">
-      <p className="text-[11px] font-semibold text-sidebar-text uppercase tracking-widest">
+      <p className="text-[10px] font-bold text-sidebar-text uppercase tracking-[0.15em] pl-1 border-l-2 border-sidebar-text/50">
         {label}
       </p>
     </div>
@@ -161,7 +161,7 @@ export function Sidebar() {
     <aside className="w-60 bg-sidebar-bg min-h-screen flex flex-col border-r border-sidebar-border">
       {/* Logo + Organization */}
       <div className="px-5 py-5">
-        <Link href="/dashboard" className="flex items-center gap-2.5">
+        <Link href="/accueil" className="flex items-center gap-2.5">
           <div className="w-8 h-8 bg-accent rounded-xl flex items-center justify-center shadow-sm">
             <span className="text-white font-bold text-sm">R</span>
           </div>

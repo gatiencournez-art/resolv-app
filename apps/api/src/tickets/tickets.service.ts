@@ -2,8 +2,9 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
-import { TicketStatus, UserRole } from '@prisma/client';
+import { TicketStatus, UserRole, UserStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTicketDto, UpdateTicketDto, QueryTicketsDto } from './dto';
 import { AuthenticatedUser } from '../common/types';
@@ -27,6 +28,21 @@ export class TicketsService {
       const nextNumber = (lastTicket?.number ?? 0) + 1;
       const key = `TCK-${nextNumber.toString().padStart(4, '0')}`;
 
+      // Valider assignedAdminId si fourni
+      if (dto.assignedAdminId) {
+        const admin = await tx.user.findFirst({
+          where: {
+            id: dto.assignedAdminId,
+            organizationId: user.organizationId,
+            role: UserRole.ADMIN,
+            status: UserStatus.ACTIVE,
+          },
+        });
+        if (!admin) {
+          throw new BadRequestException('Administrateur non trouvé dans cette organisation');
+        }
+      }
+
       // Créer le ticket
       const ticket = await tx.ticket.create({
         data: {
@@ -41,6 +57,7 @@ export class TicketsService {
           requesterEmail: dto.requesterEmail.toLowerCase(),
           organizationId: user.organizationId,
           createdByUserId: user.id,
+          assignedAdminId: dto.assignedAdminId || null,
         },
         include: {
           createdBy: {
@@ -257,6 +274,24 @@ export class TicketsService {
     });
 
     return { deleted: true };
+  }
+
+  /**
+   * Ajoute une pièce jointe à un ticket
+   */
+  async addAttachment(ticketId: string, file: Express.Multer.File, user: AuthenticatedUser) {
+    // Verify ticket exists and user has access
+    await this.findOne(ticketId, user);
+
+    return this.prisma.attachment.create({
+      data: {
+        filename: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+        url: `/api/uploads/${file.filename}`,
+        ticketId,
+      },
+    });
   }
 
   /**

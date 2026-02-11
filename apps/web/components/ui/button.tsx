@@ -24,9 +24,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 
     const variants = {
       primary: 'bg-accent text-accent-foreground hover:bg-accent-hover shadow-soft hover:shadow-glow active:scale-[0.97]',
-      secondary: 'bg-surface-tertiary text-foreground hover:bg-surface-hover border border-th-border dark:border-white/[0.08]',
-      outline: 'border border-th-border dark:border-white/[0.1] bg-surface dark:bg-white/[0.03] text-foreground-secondary hover:bg-surface-hover dark:hover:bg-white/[0.06] hover:text-foreground hover:border-th-border-secondary',
-      ghost: 'text-foreground-secondary hover:bg-surface-hover dark:hover:bg-white/[0.06] hover:text-foreground',
+      secondary: 'bg-surface-tertiary text-foreground hover:bg-surface-hover border border-th-border',
+      outline: 'border border-th-border bg-surface text-foreground-secondary hover:bg-surface-hover hover:text-foreground hover:border-th-border-secondary',
+      ghost: 'text-foreground-secondary hover:bg-surface-hover hover:text-foreground',
       danger: 'bg-red-600 text-white hover:bg-red-700 active:scale-[0.97]',
     };
 
